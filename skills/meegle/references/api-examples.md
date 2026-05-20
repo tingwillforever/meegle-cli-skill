@@ -47,12 +47,23 @@ meegle workitem update \
 
 ## workitem search-filter
 
+`--work-item-type-keys` 是复数，值为 JSON 数组字符串。只需摘要时加 `--select` 投影，避免大响应体。
+
 ```bash
+# 基础查询（返回完整字段）
 meegle workitem search-filter \
   --project-key PROJ \
-  --work-item-type-keys TYPE_KEY \
-  --work-item-name "测试" \
-  --page-size 5 \
+  --work-item-type-keys '["TYPE_KEY"]' \
+  --page-size 10 \
+  --format json
+
+# 摘要查询（推荐：只取常用顶层字段 + 优先级）
+meegle workitem search-filter \
+  --project-key PROJ \
+  --work-item-type-keys '["TYPE_KEY"]' \
+  --work-item-name "关键词" \
+  --page-size 10 \
+  --select 'id,name,current_nodes,work_item_status,created_at,updated_at' \
   --format json
 ```
 

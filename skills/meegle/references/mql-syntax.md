@@ -101,7 +101,7 @@ WHERE `缺陷名` NOT LIKE '%后端性能问题%'
 array_contains(`当前负责人`, '张三')
 
 -- 标签数组与给定数组有交集
-array_intersect(`标签`, '["标签A","标签B"]')
+array_intersect(`标签`, '["标签A","标签B"]') 
 
 -- 处理人中是否有张三
 any_match(`处理人`, x -> x = '张三')

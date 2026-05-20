@@ -12,9 +12,31 @@ description: |
 
 1. 使用已安装的 `meegle` CLI。
 2. 通过 remote MCP Server + SSO 登录访问私有部署。
-3. 业务命令前先运行 `meegle doctor --format json`。
 
-如果 `doctor` 失败，先处理运行时、认证或配置问题，不要继续业务命令。
+`meegle doctor` 仅在以下情况使用：用户主动要求诊断，或业务命令报错且错误信息不足以定位根因。正常路径直接执行业务命令。
+
+## URL 入口规则
+
+用户提供 URL 时，**第一条命令必须是**：
+
+```bash
+meegle url decode --url '<URL>' --format json
+```
+
+禁止从路径段猜测任何参数，无论看起来多明显。
+
+`url_kind == workitem_detail` 时，固定执行以下两条命令，参数直接来自 `url decode` 输出，**不得修改命令结构**：
+
+```bash
+# 命令 A：work_item_type 是 api_name，不是 UUID，必须先转换
+meegle workitem meta-types --project-key <simple_name> --format json
+# 从返回的 data[] 中找 api_name == <work_item_type> 的条目，取其 type_key 字段
+
+# 命令 B：--work-item-ids 是复数，值是 JSON 数组字符串（含方括号和引号）
+meegle workitem get --project-key <simple_name> --work-item-type-key <type_key从A> --work-item-ids '[<work_item_id>]' --format json
+```
+
+其他 url_kind 按 [references/url-kinds.md](references/url-kinds.md) 路由。
 
 ## 命令面权威
 
@@ -37,14 +59,30 @@ meegle inspect <resource>.<method> --format json
 - `node_id`
 - 字段 key
 - 枚举 option id
+- URL 路径段中的任何参数（必须走 `url decode`）
+
+## 上下文推断
+
+当命令需要业务线、所属项目或产品型号/子平台但用户未指定时，按以下顺序推断：
+
+1. `meegle auth whoami --format json` 取 `business_line_keys/names`
+2. `workitem meta-types --project-key <project_key>` 找 `api_name == pdm` 的条目，取其 `type_key`；再用 `workitem search-filter --work-item-type-keys '[<type_key>]' --user-keys '[<meegle_user_key>]'` 取用户参与的项目
+3. 同上找 `api_name == product_type` 的 `type_key`；再用 `workitem search-filter --work-item-type-keys '[<type_key>]'` 取产品型号/子平台，结果按业务线客户端过滤
+
+每步规则：
+- 单个结果 → 直接使用，不询问
+- 多个结果 → 编号列表呈现，等待用户选择；业务线多个时先选业务线，再用业务线 ID 过滤后续查询
+
+推断结果缓存会话内，同一会话不重复询问。推断完成后询问是否保存到 Agent memory。
 
 ## 推荐执行顺序
 
-1. 运行时预检：`meegle doctor --format json`
-2. 确认空间和类型：优先使用 profile 默认 `project_key`；必要时用 `space list` / `workitem meta-types`
-3. 读路径发现：`view search`、`view get`、`workitem search-filter`、`workitem get`、`workflow list-state-transitions`
-4. 写操作：`workitem create/update/remove/abort/restore/freeze/unfreeze`、`comment add/update/remove`、`subtask create/update/operate`
-5. 临时或破坏性测试数据完成后清理
+0. **用户提供 URL 时**：`meegle url decode --url '<URL>' --format json`，按 url-kinds.md 路由
+1. 确认空间和类型：优先使用 profile 默认 `project_key`；必要时用 `space list` / `workitem meta-types`
+2. 读路径发现：`view search`、`view get`、`workitem search-filter`、`workitem get`、`workflow list-state-transitions`
+   - 只需摘要时加 `--select id,name,current_nodes,work_item_status,created_at` 投影，避免大响应体
+3. 写操作：`workitem create/update/remove/abort/restore/freeze/unfreeze`、`comment add/update/remove`、`subtask create/update/operate`
+4. 临时或破坏性测试数据完成后清理
 
 ## Reference Routing
 

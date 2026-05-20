@@ -19,7 +19,7 @@ meegle url decode --url '<URL>' --format json
 | 字段 | 说明 |
 |---|---|
 | `url_kind` | 必返；未识别时为 `unknown` |
-| `simple_name` | 空间标识；需要 `project_key` 时先 `meegle space list` 取 `name == simple_name` 那条的 `project_key` |
+| `simple_name` | 空间标识，即 `project_key`，可直接用于所有需要 `project_key` 的命令 |
 | `work_item_type` | 工作项类型 `api_name`（已脱去 `_xxx_resource` 包装），**不是** `work_item_type_key`；后续必须再用 `meegle workitem meta-types --project-key <project_key>` 映射成 UUID 形态的真实 type key |
 | `work_item_id` | 工作项 ID（字符串） |
 | `view_id` / `chart_id` / `plugin_key` / `team_id` / `template_id` | 按路径分别返回 |
@@ -38,10 +38,30 @@ meegle url decode --url '<URL>' --format json
 
 | url_kind | 可用字段 | 推荐 SOP / 命令 |
 |---|---|---|
-| `workitem_detail` | simple_name · work_item_type · work_item_id | `sop-update-workitem` / `sop-transition-node` / `sop-transition-state` 任一；先 `meegle space list` 获取 `project_key`，再用 `meegle workitem meta-types` 把 `work_item_type(api_name)` 映射成真实 `work_item_type_key`，再 `meegle workitem get` 预校验 |
+| `workitem_detail` | simple_name · work_item_type · work_item_id | 见下方三步完整示例（**禁止跳过 meta-types 直接用 api_name 当 type_key**） |
 | `workitem_create` | simple_name · work_item_type | `sop-create-workitem`（`meegle workitem create`） |
 | `workitem_draft` | simple_name · work_item_type | 同上，提示用户这是草稿视图 |
 | `workitem_homepage` / `workitem_homepage_edit` | simple_name · work_item_type | 无具体工作项 ID — **拒绝**直接操作，要求用户提供详情页 URL 或工作项 ID |
+
+### workitem_detail 三步完整示例
+
+```bash
+# 步骤 1：获取 type_key（work_item_type 是 api_name，不是 UUID，不能直接用）
+meegle workitem meta-types --project-key <simple_name> --format json
+# → 从 data[] 中找 api_name == work_item_type 的那条，取其 type_key
+
+# 步骤 2：获取工作项（注意：--work-item-ids 是复数，值为 JSON 数组字符串）
+meegle workitem get \
+  --project-key <simple_name> \
+  --work-item-type-key <type_key> \
+  --work-item-ids '[<work_item_id>]' \
+  --format json
+```
+
+**常见错误：**
+- `--work-item-id`（单数）→ 不存在，必须用 `--work-item-ids`
+- `--work-item-ids 20426988`（裸数字）→ 必须用 `'[20426988]'`（JSON 数组字符串）
+- `--work-item-type-key story_new`（api_name）→ 必须先 meta-types 拿 UUID
 ### 视图类（有 `view_id` 但无 `work_item_id`）
 
 | url_kind | 语义 | 处理 |

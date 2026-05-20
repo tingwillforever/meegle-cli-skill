@@ -10,6 +10,29 @@
 
 ---
 
+## 工作项对象结构
+
+`workitem get` / `workitem search-filter` 返回的工作项对象有两层字段：
+
+**顶层字段**（直接访问，不在 `fields[]` 里）：
+
+| 字段 | 说明 |
+|------|------|
+| `id` | 工作项 ID |
+| `name` | 标题（即工作项名称） |
+| `current_nodes` | 当前所在节点数组，可能为空 `[]`；每项含 `id`、`name`、`owners` |
+| `work_item_status` | 当前状态对象，含 `name`、`state_key` |
+| `created_at` | 创建时间（毫秒时间戳） |
+| `updated_at` | 更新时间（毫秒时间戳） |
+| `created_by` | 创建人 user_key |
+| `work_item_type_key` | 工作项类型 UUID |
+
+**`fields[]` 数组**：自定义字段，通过 `field_alias` 或 `field_key` 访问，例如优先级、负责人、截止日期等。
+
+> 取标题用 `item['name']`，不要在 `fields[]` 里找。`current_nodes` 可能为空数组，访问前先判断长度。
+
+---
+
 ## workitem meta-types
 
 列出空间下所有工作项类型。用户描述模糊时用此命令确认合法 `type_key`。
