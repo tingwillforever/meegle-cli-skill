@@ -66,7 +66,7 @@ meegle workitem get \
 
 | url_kind | 语义 | 处理 |
 |---|---|---|
-| `view_story` / `view_issue` | 需求 / 缺陷视图 | 如果用户想操作"这个视图里的工作项"，要求具体工作项 URL；否则用 `meegle view search` 确认视图，再用当前 public CLI 暴露的 `meegle view get` 读取 |
+| `view_story` / `view_issue` | 需求 / 缺陷视图 | 如果用户想操作"这个视图里的工作项"，要求具体工作项 URL；否则用 `meegle view list` 确认视图，再用当前 public CLI 暴露的 `meegle view items` 读取 |
 | `view_multi_project` / `view_project_overview` / `view_user_gantt` | 跨空间/全域/甘特视图 | 同上 |
 | `view_chart` | 图表视图 | 当前 cli 不支持 chart 操作 — **拒绝** |
 | `view_workitem` | 通用工作项视图 | 若 `is_resource=true`，`work_item_type` 已脱包装可直接用 |

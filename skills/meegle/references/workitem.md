@@ -21,7 +21,7 @@
 | `id` | 工作项 ID |
 | `name` | 标题（即工作项名称） |
 | `current_nodes` | 当前所在节点数组，可能为空 `[]`；每项含 `id`、`name`、`owners` |
-| `work_item_status` | 当前状态对象，含 `name`、`state_key` |
+| `work_item_status` | 当前状态对象，含 `state_key`（如 `"started"`、`"Finished"`）；**无 display name 字段**。展示给用户时**默认显示中文名称**：用 `workitem meta-fields` 取 `work_item_status` 字段的 `options[]`，建立 `value → label`（注意是 `label` 不是 `name`）映射后回填。同一类型只需查一次。 |
 | `created_at` | 创建时间（毫秒时间戳） |
 | `updated_at` | 更新时间（毫秒时间戳） |
 | `created_by` | 创建人 user_key |
@@ -30,6 +30,35 @@
 **`fields[]` 数组**：自定义字段，通过 `field_alias` 或 `field_key` 访问，例如优先级、负责人、截止日期等。
 
 > 取标题用 `item['name']`，不要在 `fields[]` 里找。`current_nodes` 可能为空数组，访问前先判断长度。
+
+---
+
+## 关联字段过滤
+
+`work_item_related_select` 类型字段（如"所属项目"）在 `search-by-params` 中过滤时：
+
+1. **value 是被关联工作项的数字 ID**（number 类型，不是字符串）
+2. **ID 不是直接已知的**，需先查出来：用 `workitem search-filter` 查对应工作项类型（如 `pdm` 查所属项目），按名称匹配取 `id`
+3. 字段 key 用 `workitem meta-fields` 查，按 `field_name` 定位，取 `field_key`
+
+```bash
+# Step 1：查所属项目 ID（pdm 类型，按名称匹配）
+meegle workitem search-filter \
+  --project-key PROJ \
+  --work-item-type-keys '["678db77d0ddcc724f5409bbf"]' \
+  --format json | jq '[.data[] | {id, name}]'
+
+# Step 2：查字段 key
+meegle workitem meta-fields \
+  --project-key PROJ \
+  --work-item-type-key TYPE_KEY \
+  --format json | jq '[.data[] | select(.field_type_key=="work_item_related_select") | {field_key, field_name}]'
+
+# Step 3：用数字 ID 过滤
+# search-by-params --search-group 中：
+# {"param_key": "CUSTOM_FIELD_KEY", "operator": "HAS ANY OF", "value": [PROJECT_ID]}
+#                                                                         ↑ 数字，不加引号
+```
 
 ---
 
@@ -99,3 +128,4 @@ meegle workitem meta-create-fields \
   --work-item-type-key 678de79dc62484dbfcc76150 \
   --format json | jq '.data[] | select(.field_key=="priority") | .options'
 ```
+

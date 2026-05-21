@@ -29,10 +29,13 @@ Use this file to choose the default-safe command path.
 | `workflow meta-node-fields` | ❌ 不支持 | MCP 无对应工具 |
 | `user query` | ✅ 支持 | |
 | `team list-members` | ✅ 支持 | |
-| `view search` | ✅ 支持 | |
-| `view get` | ✅ 支持 | |
+| `view list` | ✅ 支持 | |
+| `view items` | ✅ 支持 | |
 | `view create-fixed` | ✅ 支持 | |
 | `view update-fixed` | ✅ 支持 | |
+| `view delete` | ✅ 支持 | |
+| `view create-condition` | ✅ 支持 | |
+| `view update-condition` | ✅ 支持 | |
 | `chart get` | ✅ 支持 | |
 | `chart list` | ✅ 支持 | |
 | `workhour list-records` | ✅ 支持 | |
@@ -46,7 +49,7 @@ Use this file to choose the default-safe command path.
 | `subtask update` | ✅ 支持 | |
 | `mywork todo` | ❌ 不支持 | MCP 未提供 |
 
-**覆盖率**: 31/34 = 91.2%
+**覆盖率**: 34/37 = 91.9%
 
 ## Verified Commands
 
@@ -75,10 +78,13 @@ Prefer these by default:
 - `workflow list-state-required`
 
 ### View
-- `view search`
-- `view get`
+- `view list`
+- `view items`
 - `view create-fixed`
 - `view update-fixed`
+- `view delete`
+- `view create-condition`
+- `view update-condition`
 
 ### Chart
 - `chart get`

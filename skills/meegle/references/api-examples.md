@@ -47,7 +47,19 @@ meegle workitem update \
 
 ## workitem search-filter
 
-`--work-item-type-keys` 是复数，值为 JSON 数组字符串。只需摘要时加 `--select` 投影，避免大响应体。
+`--work-item-type-keys` 是复数，值为 JSON 数组字符串。
+
+⚠️ `--created-at` / `--updated-at` 的 `start` / `end` 必须是**毫秒整数**（number 类型），不能是 ISO 字符串：
+```bash
+# 正确
+--created-at '{"start":1771603200000,"end":1779379199000}'
+# 错误（server 会报 expected number, received string）
+--created-at '{"start":"2026-02-21T00:00:00+08:00","end":"..."}'
+```
+
+Python 换算：`int(datetime(..., tzinfo=tz).timestamp() * 1000)`
+
+⚠️ `search-filter` **只支持内置维度**（业务线、时间、状态、优先级、tag），无法按自定义字段（如"所属项目"）过滤。需要自定义字段过滤时，改用 `search-by-params`（见下方示例）。
 
 ```bash
 # 基础查询（返回完整字段）
@@ -57,15 +69,46 @@ meegle workitem search-filter \
   --page-size 10 \
   --format json
 
-# 摘要查询（推荐：只取常用顶层字段 + 优先级）
+# 时间范围 + 业务线过滤
 meegle workitem search-filter \
   --project-key PROJ \
   --work-item-type-keys '["TYPE_KEY"]' \
-  --work-item-name "关键词" \
-  --page-size 10 \
-  --select 'id,name,current_nodes,work_item_status,created_at,updated_at' \
+  --created-at '{"start":1771603200000,"end":1779379199000}' \
+  --businesses '["BUSINESS_LINE_ID"]' \
+  --page-size 200 \
   --format json
 ```
+
+## workitem search-by-params
+
+按结构化字段过滤，支持自定义字段。`page-size` 上限 50。
+
+> 完整的 param_key 列表、operator 枚举、value 格式规范见 [search-params-format.md](search-params-format.md)。
+
+⚠️ 关联字段（`work_item_related_select`）的 value 是**数字 ID**（number 类型），不是字符串。ID 需先查对应工作项类型获取，见 [search-params-format.md](search-params-format.md) 的「关联字段 ID 查找 SOP」。
+
+```bash
+# 时间范围 + 业务线 + 自定义关联字段（所属项目）+ 排除已完成状态
+meegle workitem search-by-params \
+  --project-key PROJ \
+  --work-item-type-key TYPE_KEY \
+  --search-group '{
+    "conjunction": "AND",
+    "search_params": [
+      {"param_key": "business", "operator": "HAS ANY OF", "value": ["BUSINESS_LINE_ID"]},
+      {"param_key": "created_at", "operator": ">", "value": 1771603200000},
+      {"param_key": "created_at", "operator": "<", "value": 1779379199000},
+      {"param_key": "work_item_status", "operator": "HAS NONE OF", "value": ["Finished"]},
+      {"param_key": "CUSTOM_FIELD_KEY", "operator": "HAS ANY OF", "value": [RELATED_WORKITEM_ID]}
+    ],
+    "search_groups": []
+  }' \
+  --fields '["id","name","work_item_status","created_at"]' \
+  --page-size 50 \
+  --format json
+```
+
+字段 key 查找：`workitem meta-fields --project-key PROJ --work-item-type-key TYPE_KEY --format json | jq '[.data[] | {field_key, field_name, field_type_key}]'`
 
 ## comment add
 

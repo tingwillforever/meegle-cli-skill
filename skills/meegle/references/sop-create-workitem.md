@@ -163,7 +163,7 @@ meegle workitem get \
 
 | 报错特征 | 自愈动作 |
 |---------|---------|
-| `need STRING type, but got: LIST/MAP` | field_value 忘了 JSON.stringify，转字符串后重试 |
+| `need STRING type, but got: LIST/MAP` | shape 不匹配；回查 [field-value-format.md](field-value-format.md) 找正确 shape，**禁止** JSON.stringify 绕过 |
 | `json: unsupported type` / 网络超时 | 原参数直接重试 |
 | 字段 key 不匹配 | 用 `workitem meta-create-fields` 全量返回按 `field_name` 模糊匹配 |
 | `invalid select option(s)` | 从 meta 的 `options[]` 匹配；唯一匹配则修正重试，否则展示候选让用户选 |

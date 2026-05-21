@@ -39,9 +39,9 @@ These mistakes do NOT produce error codes — they silently return wrong data or
 
 ### Pitfall 1: Inferring view type from URL
 
-**Wrong:** URL contains `storyView` → assume it's a fix view → call `view get`.
+**Wrong:** URL contains `storyView` → assume it's a fix view → call `view items`.
 **Reality:** The URL path does NOT reliably indicate view type. A `storyView` URL can be a panoramic view (type 1).
-**Rule:** Always call `meegle view search` first, check the `view_type` field, then route to the correct items command.
+**Rule:** Always call `meegle view list` first, check the `view_type` field, then route to the correct items command.
 
 ### Pitfall 2: Using display names for related fields
 
@@ -72,6 +72,24 @@ These mistakes do NOT produce error codes — they silently return wrong data or
 **Wrong:** Treat `workitem meta-create-fields.is_required == 1` as optional or remove such fields after `field [xxx] is illegal`.
 **Reality:** `is_required == 1` is the create-page required contract. If create accepts missing required fields, that is a blocking data-quality bug; if create rejects a required field as illegal, metadata and create API are inconsistent.
 **Rule:** Fill every required create-page field before `workitem create`. Never delete a required field to make creation succeed.
+
+### Pitfall 7: `field not found` on create/update_condition_view
+
+**Wrong:** See `field not found: cbg_product_develop, story_new` and assume the work_item_type_key or field config is wrong.
+**Reality:** `create_condition_view` / `update_condition_view` require `project_key` to be a **UUID** (e.g. `678f4f4845d3ddb9484881d9`) in the request body. Other APIs accept simple_name in the URL path; these two do not.
+**Rule:** The CLI resolves this automatically. If calling the raw API directly, use `meegle space detail --project-key PROJ` to get the UUID first.
+
+### Pitfall 8: Confusing workflow node state_key with work_item_status state_key
+
+**Wrong:** `{"param_key": "work_item_status", "value": ["state_41"], "operator": "HAS ANY OF"}` — using a workflow node's internal `state_key` (like `state_41`).
+**Reality:** `work_item_status` value is the status's `state_key`, taken from `meegle workitem meta-fields` → `work_item_status` field → `options[].value`. This is different from the workflow node's `state_key`.
+**Rule:** Get the correct values from `meegle workitem meta-fields --project-key PROJ --format json`, find `field_key == "work_item_status"`, and use `options[].value`.
+
+### Pitfall 9: `current_nodes` 在条件视图 API 中不可用
+
+**Wrong:** 在 `view create-condition` / `view update-condition` 的 `search_group` 里使用 `current_nodes`。
+**Reality:** `current_nodes` 在 `workitem search-by-params` 的 `search_group` 里支持，但在 `create/update_condition_view` API 里所有操作符均报 `err_code 20029 Unsupported Field Type`。这是私有部署版本的限制。
+**Rule:** 条件视图里不要使用 `current_nodes`。如需按节点筛选，改用 `work_item_status`（state_key）替代，或通过页面手动配置。
 
 ---
 
