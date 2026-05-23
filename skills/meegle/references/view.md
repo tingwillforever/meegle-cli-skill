@@ -40,46 +40,11 @@ meegle view items \
 
 当前 public CLI 不暴露 `view panoramic-items`。如果后续确认需要条件视图读取能力，应单独评审后再开放。
 
-## view delete
+## 条件与删除类视图操作
 
-删除固定视图或条件视图。固定视图和条件视图共用同一接口，通过 `view_id` 区分。
+删除固定视图或条件视图、创建条件视图、更新条件视图都属于条件操作，不作为默认 skill 路径。只有用户明确要求管理视图配置时，才查看 `verified-command-surface.md` 与 `meegle inspect` 确认当前公开命令和参数。
 
-```bash
-meegle view delete \
-  --project-key PROJ \
-  --view-id VIEW_ID \
-  --format json
-```
-
-## view create-condition
-
-创建条件视图。`--search-group` 传 JSON 对象，结构见下方。
-
-```bash
-meegle view create-condition \
-  --project-key PROJ \
-  --work-item-type-key TYPE_KEY \
-  --name '视图名称' \
-  --search-group '{"conjunction":"AND","search_params":[...]}' \
-  --format json
-```
-
-**⚠️ `project_key` 必须是 UUID（如 `678f4f4845d3ddb9484881d9`），不能是 simple_name（如 `cbg_product_develop`）。** CLI 会自动解析，但直接调用原始 API 时需注意。
-
-`--search-group` 不传则创建空条件视图。
-
-## view update-condition
-
-更新条件视图的名称或筛选条件。需要同时传 `--work-item-type-key`。
-
-```bash
-meegle view update-condition \
-  --project-key PROJ \
-  --work-item-type-key TYPE_KEY \
-  --view-id VIEW_ID \
-  --search-group '{"conjunction":"AND","search_params":[...]}' \
-  --format json
-```
+条件视图创建 / 更新的 `search_group` 结构见下方。不要在普通读取工作流里主动引导用户使用这些写操作。
 
 ---
 
@@ -138,4 +103,3 @@ meegle view update-condition \
   ]
 }
 ```
-

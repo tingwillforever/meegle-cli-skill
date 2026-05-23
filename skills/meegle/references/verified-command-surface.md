@@ -113,7 +113,6 @@ Prefer these by default:
 - `user query`
 
 ### Private Extensions
-- `workitem remove`
 - `workitem abort`
 - `workitem restore`
 - `workitem freeze`
@@ -144,7 +143,6 @@ Allowed only after prerequisite discovery:
 - `release deploy-task-execute`
 - `release deploy-task-apply-white-list`
 - `release deploy-task-verify`
-- `workitem remove` destructive path: only after the user explicitly asks to delete a work item or clean up test data, and always warn that deletion is irreversible
 
 Use `meegle inspect <resource>.<method>` first and check the caveat.
 

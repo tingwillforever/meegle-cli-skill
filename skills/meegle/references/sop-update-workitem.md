@@ -140,7 +140,7 @@ meegle workitem get \
 
 用户给自然语言条件（如"把名称含'依赖'的所有需求加到前置依赖字段"）时：
 
-1. `meegle workitem search-by-params --project-key X --work-item-type-key T --search-params '{...}' --format json` 检索匹配项
+1. `meegle workitem search-by-params --project-key X --work-item-type-key T --search-group '{...}' --format json` 检索匹配项
 2. 提取 ID 列表
 3. 走【取旧值 → 合并 → 覆盖写】
 

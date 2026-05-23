@@ -61,7 +61,7 @@ meegle inspect <resource>.<method> --format json
 - 枚举 option id
 - URL 路径段中的任何参数（必须走 `url decode`）
 
-**`project_key` 使用规则**：优先直接传用户提供的 `simple_name`（如 `cbg_product_develop`）。只有当命令明确要求 UUID 形式（如 `view create-condition` / `view update-condition` 的 request body）时，才通过 `meegle space detail --simple-names '["<simple_name>"]'` 换取 UUID。`space list` 不返回 `simple_name`，不要用它来查找空间。
+**`project_key` 使用规则**：优先直接传用户提供的 `simple_name`（如 `cbg_product_develop`）。只有当命令或接口明确要求 UUID 形式时，才通过 `meegle space detail --simple-names '["<simple_name>"]'` 换取 UUID。`space list` 不返回 `simple_name`，不要用它来查找空间。
 
 ## 上下文推断
 

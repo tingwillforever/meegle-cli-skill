@@ -199,12 +199,6 @@ meegle release deploy-task-execute \
   --format json
 ```
 
-## workitem remove
+## workitem cleanup
 
-```bash
-meegle workitem remove \
-  --project-key PROJ \
-  --work-item-type-key TYPE_KEY \
-  --work-item-id 12345 \
-  --format json
-```
+当前 public CLI 不暴露工作项删除命令。临时验证工作项需要清理时，先向用户说明不能通过当前 CLI 自动删除，并让用户在 web 端或已批准的专用清理流程中处理。

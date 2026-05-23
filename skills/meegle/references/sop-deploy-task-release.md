@@ -109,27 +109,17 @@ meegle release deploy-task-execute \
 
 ### STEP 9 — 监控部署任务状态
 
-执行后，使用 `deploy-task-inspect --watch` 跟踪部署任务直到达到终态，而不是手动轮询：
+执行后，使用 `deploy-task-inspect` 读取部署任务状态。当前 public CLI 不暴露 watch / interval / timeout 参数；如需持续观察，由 agent 按用户确认的节奏重复执行只读 inspect。
 
 ```bash
 meegle release deploy-task-inspect \
   --project-key PROJ \
   --release-id RELEASE_ID \
   --recordID RECORD_ID \
-  --watch \
-  --interval 10s \
-  --timeout 30m
+  --format json
 ```
 
-`--watch` 将 inspect 从单次 JSON 响应切换为 NDJSON 流（每次轮询一行）。每轮都会注入相同的 `readiness` 软信号。
-
-退出码：
-- `0` = `deploy_status` 达到 `validated` 或 `completed`
-- `1` = 任务达到 `rolled-back` / `rollback` / `terminated` / `failed`，或连续三次 inspect 失败
-- `124` = `--timeout` 超时
-- `130` = SIGINT
-
-agent **应该**根据这些退出码分支，然后再继续 `deploy-task-verify`。
+agent **应该**根据响应中的 `deploy_status` 分支，然后再继续 `deploy-task-verify`。若状态仍在进行中，汇报当前状态并询问用户是否继续观察。
 
 ### STEP 10 — 应用白名单（如需要）
 
