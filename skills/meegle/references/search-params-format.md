@@ -153,10 +153,20 @@ meegle workitem meta-fields \
   --work-item-type-key TYPE_KEY \
   --format json | jq '[.data[] | select(.field_type_key=="workitem_related_select" or .field_type_key=="work_item_related_select") | {field_key, field_name, field_type_key}]'
 
-# Step 2：查被关联工作项的 ID（以「所属项目」关联 pdm 类型为例）
+# Step 2：查被关联工作项的 ID
+# - 基础名称匹配、内置维度过滤：用 search-filter
+# - 字段级/复杂条件查询，或当前授权/接口契约不适合 search-filter：用 search-by-params
 meegle workitem search-filter \
   --project-key PROJ \
-  --work-item-type-keys '["PDM_TYPE_KEY"]' \
+  --work-item-type-keys '["TARGET_TYPE_KEY"]' \
+  --work-item-name "目标名称" \
+  --format json | jq '[.data[] | {id, name}]'
+
+# search-by-params 示例
+meegle workitem search-by-params \
+  --project-key PROJ \
+  --work-item-type-key TARGET_TYPE_KEY \
+  --search-group '{"conjunction":"AND","search_params":[{"param_key":"people","operator":"HAS ANY OF","value":["USER_KEY"]}],"search_groups":[]}' \
   --format json | jq '[.data[] | {id, name}]'
 
 # Step 3：构造过滤条件（value 是数字数组）

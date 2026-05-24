@@ -52,6 +52,27 @@ meegle inspect <resource>.<method> --format json
 2. [references/verified-command-surface.md](references/verified-command-surface.md)
 3. 本目录 reference 中的 `Private CLI 差异`
 
+**查询职责边界**：
+
+- `workitem search-filter`：常见场景的简化查询路径，适合名称模糊匹配和内置维度过滤（业务线、时间、状态、优先级、tag、user_keys）。
+- `workitem search-by-params`：通用结构化查询路径，可用于任意工作项类型；凡是自定义字段、关联工作项字段、复杂 `search_group` 组合，都走这条路径。
+- 当两者都可表达时，优先 `workitem search-filter`；当需要字段级条件，或当前授权/接口契约不适合 `search-filter` 时，改用 `workitem search-by-params`。
+- 不要因为服务端内部可能把部分 `search-filter` 改写为 `search-by-params`，就把两者当成同一层能力；对外仍按上述职责选命令。
+
+**当前用户相关工作项查询约束**：
+
+- 当用户说“我参与的”“我的”“与我相关的”某类工作项时，不能直接查询该类型全量列表。
+- 若使用 `workitem search-filter`，必须显式加 `--user-keys '["<meegle_user_key>"]'`。`--user-keys` 的语义是“与这些用户相关的工作项”，匹配 creator / follower / role owner。
+- 不带 `--user-keys` 的查询，只能解释为“空间内该类型工作项列表”，不能默认解释为“当前用户相关列表”。
+- 若用户要求更严格的字段级人员语义（如“我负责的”“people 字段包含我”），再改用 `workitem search-by-params` 的 `people` 条件或对应字段条件。
+
+**查询结果展示规则**：
+
+- 面向用户展示查询结果时，默认输出中文语义或可读 label，不直接输出 opaque key / id / state_key / option value。
+- 若底层返回的是 key/value 形态，先补做映射再展示；原始 key 仅在排障、精确比对、或映射缺失时作为括号附注保留。
+- 常见映射来源：状态用 `workitem meta-fields` 的 `options[].label`；业务线优先用 `auth whoami` 的 names 或 `space business-lines`；角色用 `workitem meta-roles`；人员用 `user query` / `team list-members`。
+- `current_nodes` 这类本身已返回节点中文名的字段，直接展示名称，不要再退化成内部 key。
+
 不要猜测：
 
 - `project_key`
@@ -68,7 +89,7 @@ meegle inspect <resource>.<method> --format json
 当命令需要业务线、所属项目或产品型号/子平台但用户未指定时，按以下顺序推断：
 
 1. `meegle auth whoami --format json` 取 `business_line_keys/names`；若需要业务线 ID，用 `meegle space business-lines --project-key PROJ --format json` 按 `name` 匹配取 `id`
-2. `workitem meta-types --project-key <project_key>` 找 `api_name == pdm` 的条目，取其 `type_key`；再用 `workitem search-filter --work-item-type-keys '[<type_key>]' --user-keys '[<meegle_user_key>]'` 取用户参与的项目
+2. `workitem meta-types --project-key <project_key>` 找 `api_name == pdm` 的条目，取其 `type_key`；若只需要当前授权摘要，优先看 `meegle auth whoami --format json`。若需要项目明细，适用上面的“当前用户相关工作项查询约束”：当前用户参与/相关的项目，`workitem search-filter` 必须显式加 `--user-keys '["<meegle_user_key>"]'`；只有在要看空间内全量项目管理工作项时，才允许不带 `--user-keys`；若需要更严格的字段级人员语义或当前授权/接口契约不适合 `search-filter`，再改用 `workitem search-by-params`
 3. 同上找 `api_name == product_type` 的 `type_key`；再用 `workitem search-filter --work-item-type-keys '[<type_key>]'` 取产品型号/子平台，结果按业务线客户端过滤
 
 每步规则：
@@ -81,7 +102,7 @@ meegle inspect <resource>.<method> --format json
 
 0. **用户提供 URL 时**：`meegle url decode --url '<URL>' --format json`，按 url-kinds.md 路由
 1. 确认空间和类型：直接用用户提供的 `simple_name` 作为 `project_key`；必要时用 `workitem meta-types` 确认类型
-2. 读路径发现：`view search`、`view get`、`workitem search-filter`、`workitem get`、`workflow list-state-transitions`
+2. 读路径发现：`view search`、`view get`、`workitem search-filter`（基础查询）、`workitem search-by-params`（字段级查询）、`workitem get`、`workflow list-state-transitions`
    - 只需摘要时加 `--select id,name,current_nodes,work_item_status,created_at` 投影，避免大响应体
 3. 写操作：`workitem create/update/remove/abort/restore/freeze/unfreeze`、`comment add/update/remove`、`subtask create/update/operate`
 4. 临时或破坏性测试数据完成后清理

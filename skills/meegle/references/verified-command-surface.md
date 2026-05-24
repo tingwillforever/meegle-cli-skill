@@ -119,7 +119,7 @@ Prefer these by default:
 - `workitem unfreeze`
 - `workitem search-filter`
 - `workitem search-by-params`
-- `workitem list-op-records`
+- `workitem list-op-records` — body 中 `project_key` 必须是 UUID（CLI 自动从 simple_name 转换，参考 `error-handling.md` Pitfall 10）；upstream spec 不接受 `work_item_type_key` 字段，但 CLI/MCP 仍要求该参数用于客户端授权范围判定，缺失会得到 `work_item_type_required`；额外可选过滤参数：`start_from`、`operator`、`operator_type`、`source_type`、`source`、`start`/`end`
 - `user resolve`
 - `user me`
 - `release deploy-task-*`

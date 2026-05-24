@@ -91,6 +91,20 @@ These mistakes do NOT produce error codes — they silently return wrong data or
 **Reality:** `current_nodes` 在 `workitem search-by-params` 的 `search_group` 里支持，但在 `create/update_condition_view` API 里所有操作符均报 `err_code 20029 Unsupported Field Type`。这是私有部署版本的限制。
 **Rule:** 条件视图里不要使用 `current_nodes`。如需按节点筛选，改用 `work_item_status`（state_key）替代，或通过页面手动配置。
 
+### Pitfall 10: `list-op-records` 静默返回空列表
+
+**Wrong:** 调用 `meegle workitem list-op-records --project-key cbg_product_develop --work-item-type-key 678de79dc62484dbfcc76150 --work-item-ids '[20426988]'`，得到 `{"err_code":0, "data":{"op_records":[]}}` 就当作"该工作项确实没有操作记录"。
+**Reality:** 私有部署的 `/open_api/op_record/work_item/list` 接口要求 body 中的 `project_key` 必须是 UUID（如 `678f4f4845d3ddb9484881d9`），不能是 simple_name（`cbg_product_develop`）。当 simple_name 未被换成 UUID 时，后端返回 200 + 空数组，没有任何报错。
+**Rule:** CLI 已自动把 `--project-key` 的 simple_name 换成 UUID。若你直接命中 raw API，先 `meegle space detail --simple-names '["PROJ"]'` 取 UUID。`--work-item-type-key` 仍需提供——CLI/MCP 用它做客户端授权范围判定（spec 文档不接受这个字段，后端会忽略它，但缺失会被授权层拒绝并返回 `work_item_type_required`）。
+**可选过滤参数**（spec：[swels3ca](https://project.feishu.cn/b/helpcenter/1p8d7djs/swels3ca)）：`operation_type`、`op_record_module`、`page_size`、`start_from`（分页游标）、`operator`（操作人 user_key 列表）、`operator_type`（`user`/`auto`/`system`/`calc_field`/`plugin`/`others`）、`source_type`（`auto`/`plugin`）、`source`（来源 ID 列表）、`start`/`end`（毫秒时间范围）。
+
+**服务端契约约束**（实测发现，超出 spec 文档）：
+
+- **`start`/`end` 必须成对**：仅传一个会得到 `err_code: 20006 Invalid Param`；不需要时间过滤就两个都不传。
+- **时间窗口跨度上限约 7 天**：跨度 7 天通过，30 天即报 `err_code: 20013 Invalid Time Interval`。要查更长区间需要拆窗口分批查询。
+- **多 `work_item_ids` 翻页规则**：后端把多 ID 的记录按 ID 顺序合并到同一结果集，单页上限 200。当某个 ID 的记录就 ≥200 条时，其它 ID 的记录会被挤出当页；必须用 `start_from` 翻页（直到 `has_more: false`）才能拿全。仅查单个 ID 时不会触发此问题。
+- **空窗口不报错**：窗口内确实没有记录时，返回 `err_code: 0` + `op_records: []`。空数组**仅在确认 `project_key` 已是 UUID（CLI 默认满足）且参数无误时**才能解释为"真的无记录"。
+
 ---
 
 ## Hard-Block Field Types

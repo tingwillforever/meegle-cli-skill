@@ -21,10 +21,13 @@
 meegle view list \
   --project-key PROJ \
   --work-item-type-key TYPE_KEY \
+  --page-num 1 \
+  --page-size 50 \
   --format json
 ```
 
 `view_type` 只用于选择后续路径，不要仅凭 URL 中的 `storyView` / `multiProjectView` 判断。
+如果结果较多，优先显式传 `--page-num`、`--page-size`，避免默认返回过大结果集。
 
 ## view items
 

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Sync skills from ../meegle-cli/skills to ./skills, with optional exclusions.
+# Sync the public meegle skill from ../meegle-cli/skills/meegle to ./skills/meegle,
+# with optional exclusions.
 #
 # Usage:
 #   ./sync-skills.sh [--exclude <pattern>] [--exclude <pattern>] ...
@@ -14,8 +15,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SRC_DIR="$(cd "${SCRIPT_DIR}/../meegle-cli/skills" && pwd)"
-DST_DIR="${SCRIPT_DIR}/skills"
+SRC_DIR="$(cd "${SCRIPT_DIR}/../meegle-cli/skills/meegle" && pwd)"
+DST_DIR="${SCRIPT_DIR}/skills/meegle"
 
 DRY_RUN=false
 EXCLUDES=()
@@ -48,11 +49,14 @@ if [[ ! -d "$SRC_DIR" ]]; then
   exit 1
 fi
 
-# Build rsync exclude args
+# Build rsync exclude args. Bash 3.2 with set -u treats empty array expansion as
+# unbound, so only expand EXCLUDES when at least one custom pattern exists.
 RSYNC_EXCLUDES=("--exclude=.DS_Store")
-for pattern in "${EXCLUDES[@]}"; do
-  RSYNC_EXCLUDES+=("--exclude=${pattern}")
-done
+if [[ ${#EXCLUDES[@]} -gt 0 ]]; then
+  for pattern in "${EXCLUDES[@]}"; do
+    RSYNC_EXCLUDES+=("--exclude=${pattern}")
+  done
+fi
 
 echo "Source : $SRC_DIR"
 echo "Dest   : $DST_DIR"

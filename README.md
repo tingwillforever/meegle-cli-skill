@@ -21,9 +21,9 @@ npx -y skills add https://github.com/tingwillforever/meegle-cli-skill --skill me
 From a local checkout with both repositories side by side:
 
 ```bash
-rsync -a --delete --exclude='.DS_Store' \
-  ../meegle-cli/skills/meegle/ \
-  ./skills/meegle/
+./sync-skills.sh --dry-run
+./sync-skills.sh
 ```
 
-Review the diff before committing and pushing.
+`sync-skills.sh` syncs only the public `skills/meegle/` directory into this
+repository's `skills/meegle/`. Review the diff before committing and pushing.

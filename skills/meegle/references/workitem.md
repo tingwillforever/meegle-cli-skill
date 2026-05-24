@@ -31,6 +31,19 @@
 
 > 取标题用 `item['name']`，不要在 `fields[]` 里找。`current_nodes` 可能为空数组，访问前先判断长度。
 
+### 用户可读展示
+
+对用户展示工作项查询结果时，默认做语义化回填，不直接输出原始 key：
+
+- `work_item_status.state_key`：用 `workitem meta-fields` 中 `work_item_status.options[]` 建立 `value → label` 映射，默认显示中文状态名；只有排障时才附带原始 `state_key`
+- `current_nodes[]`：直接显示节点 `name`
+- `select` / `multi-select` / `tree-select` 等枚举字段：优先显示 `label`，不要把 `value` 直接展示给用户
+- `business` / 业务线 ID：用 `meegle auth whoami --format json` 的 `business_line_names` 或 `meegle space business-lines` 返回名称回填
+- 角色 key：用 `meegle workitem meta-roles --project-key PROJ --work-item-type-key TYPE_KEY --format json` 回填角色名称
+- 人员 user_key：必要时用 `meegle user query --user-keys '["USER_KEY"]' --format json` 或 `meegle team list-members --project-key PROJ --format json` 回填姓名
+
+如果一时拿不到映射，先明确标注“原始 key”，不要把它误写成中文语义。
+
 ---
 
 ## 关联字段过滤
@@ -38,14 +51,24 @@
 `work_item_related_select` 类型字段（如"所属项目"）在 `search-by-params` 中过滤时：
 
 1. **value 是被关联工作项的数字 ID**（number 类型，不是字符串）
-2. **ID 不是直接已知的**，需先查出来：用 `workitem search-filter` 查对应工作项类型（如 `pdm` 查所属项目），按名称匹配取 `id`
+2. **ID 不是直接已知的**，需先查出来：先确定目标工作项类型，再按该类型的查询职责选命令
+   - 基础名称匹配、内置维度过滤：用 `workitem search-filter`
+   - 字段级/复杂条件查询，或当前授权/接口契约不适合 `workitem search-filter`：用 `workitem search-by-params`
 3. 字段 key 用 `workitem meta-fields` 查，按 `field_name` 定位，取 `field_key`
 
 ```bash
-# Step 1：查所属项目 ID（pdm 类型，按名称匹配）
+# Step 1：如果目标类型支持基础名称匹配，用 search-filter 查目标 ID
 meegle workitem search-filter \
   --project-key PROJ \
-  --work-item-type-keys '["678db77d0ddcc724f5409bbf"]' \
+  --work-item-type-keys '["TARGET_TYPE_KEY"]' \
+  --work-item-name "目标名称" \
+  --format json | jq '[.data[] | {id, name}]'
+
+# Step 1b：如果当前授权或接口契约不适合 search-filter，改用 search-by-params 查目标 ID
+meegle workitem search-by-params \
+  --project-key PROJ \
+  --work-item-type-key TARGET_TYPE_KEY \
+  --search-group '{"conjunction":"AND","search_params":[{"param_key":"people","operator":"HAS ANY OF","value":["USER_KEY"]}],"search_groups":[]}' \
   --format json | jq '[.data[] | {id, name}]'
 
 # Step 2：查字段 key
@@ -128,4 +151,3 @@ meegle workitem meta-create-fields \
   --work-item-type-key 678de79dc62484dbfcc76150 \
   --format json | jq '.data[] | select(.field_key=="priority") | .options'
 ```
-
