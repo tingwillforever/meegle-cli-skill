@@ -41,6 +41,19 @@ meegle view items \
   --format json
 ```
 
+`view items` 当前不声明 backend projection。传 `--select` 会直接报错。只想减少本地展示字段时，用 `--output-select`，并按 object-wrapper 路径书写：
+
+```bash
+meegle view items \
+  --project-key PROJ \
+  --view-id VIEW_ID \
+  --page-size 20 \
+  --output-select data.name,data.view_id,data.work_item_id_list \
+  --format json
+```
+
+注意：`view items` 返回的是 object-wrapper，不是直接数组，因此不要写成 `--output-select name,view_id`。
+
 当前 public CLI 不暴露 `view panoramic-items`。如果后续确认需要条件视图读取能力，应单独评审后再开放。
 
 ## 条件与删除类视图操作

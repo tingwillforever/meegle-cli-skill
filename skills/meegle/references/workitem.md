@@ -46,6 +46,31 @@
 
 ---
 
+## 字段 projection 与本地输出裁剪
+
+工作项读取场景里有三种容易混淆的字段选择能力：
+
+| 能力 | 使用方式 | 适用场景 |
+|---|---|---|
+| Backend projection | `--select id,name,current_nodes,work_item_status` | 命令声明支持后端 projection，需要减少后端返回字段 |
+| Local output projection | `--output-select id,name,current_nodes,work_item_status` | 只想减少本地展示字段，不改变后端请求 |
+| API-native fields | `--fields '["id","name"]'` | 底层 API 兼容参数，仅在命令特定场景或排障时使用 |
+
+当前默认 projection-capable 工作项命令：
+
+- `workitem get`
+- `workitem search-by-params`
+
+规则：
+
+- 在上述命令上，默认用 `--select` 表达产品化字段 projection。
+- 不要同时传 `--select` 与 `--fields`。
+- `workitem search-filter` 主要用于内置维度过滤；它不声明 backend projection，传 `--select` 会直接报错。如果只是想少展示字段，用 `--output-select`。
+- 排障时先用 `--dry-run` 查看 `.params.data.fields` 是否出现，确认 projection 已进入后端请求。
+- 当前后端在 `workitem get` / `workitem search-by-params` 上主要会收敛 `fields[]` 自定义字段集合；`id`、`name`、`current_nodes`、`work_item_status`、`created_at` 等固定顶层字段仍可能按接口契约返回。
+
+---
+
 ## 关联字段过滤
 
 `work_item_related_select` 类型字段（如"所属项目"）在 `search-by-params` 中过滤时：

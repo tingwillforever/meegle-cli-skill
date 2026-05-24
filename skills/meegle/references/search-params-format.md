@@ -5,6 +5,8 @@
 > 本文覆盖 `workitem search-by-params` 的 `--search-group` 入参构造规范。
 > 字段写入（`workitem create` / `workitem update`）的 `field_value` shape 见 [field-value-format.md](field-value-format.md)。
 
+`workitem search-by-params` 支持 backend projection。需要限制后端返回字段时，默认使用 `--select id,name,...`；`--fields` 仅作为 API-native compatibility input，不要与 `--select` 同时使用。只想裁剪本地展示时，用 `--output-select`。
+
 ---
 
 ## 顶层结构：SearchGroup

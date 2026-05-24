@@ -30,9 +30,12 @@ meegle workitem create \
 meegle workitem get \
   --project-key PROJ \
   --work-item-type-key TYPE_KEY \
-  --work-item-ids 12345 \
+  --work-item-ids '[12345]' \
+  --select id,name,current_nodes,work_item_status,created_at \
   --format json
 ```
+
+`workitem get` 支持 backend projection，`--select` 会映射为后端 `data.fields`。只想在返回后减少展示字段时，改用 `--output-select`。
 
 ## workitem update
 
@@ -69,6 +72,14 @@ meegle workitem search-filter \
   --page-size 10 \
   --format json
 
+# 基础查询 + 本地展示裁剪（不改变后端请求）
+meegle workitem search-filter \
+  --project-key PROJ \
+  --work-item-type-keys '["TYPE_KEY"]' \
+  --page-size 10 \
+  --output-select id,name,current_nodes,work_item_status,created_at \
+  --format json
+
 # 时间范围 + 业务线过滤
 meegle workitem search-filter \
   --project-key PROJ \
@@ -87,6 +98,8 @@ meegle workitem search-filter \
 
 ⚠️ 关联字段（`work_item_related_select`）的 value 是**数字 ID**（number 类型），不是字符串。ID 需先查对应工作项类型获取，见 [search-params-format.md](search-params-format.md) 的「关联字段 ID 查找 SOP」。
 
+`search-by-params` 支持 backend projection。默认用 `--select id,name,...` 限制后端返回字段；`--fields` 仅作为 API-native compatibility input，不能与 `--select` 同时使用。
+
 ```bash
 # 时间范围 + 业务线 + 自定义关联字段（所属项目）+ 排除已完成状态
 meegle workitem search-by-params \
@@ -103,12 +116,25 @@ meegle workitem search-by-params \
     ],
     "search_groups": []
   }' \
-  --fields '["id","name","work_item_status","created_at"]' \
+  --select id,name,work_item_status,created_at \
   --page-size 50 \
   --format json
 ```
 
 字段 key 查找：`workitem meta-fields --project-key PROJ --work-item-type-key TYPE_KEY --format json | jq '[.data[] | {field_key, field_name, field_type_key}]'`
+
+## view items
+
+```bash
+meegle view items \
+  --project-key PROJ \
+  --view-id VIEW_ID \
+  --page-size 20 \
+  --output-select data.name,data.view_id,data.work_item_id_list \
+  --format json
+```
+
+`view items` 不支持 backend projection。传 `--select` 会直接失败；若只是想减少本地展示字段，使用 `--output-select data.xxx`。
 
 ## comment add
 

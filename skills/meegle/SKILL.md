@@ -52,6 +52,29 @@ meegle inspect <resource>.<method> --format json
 2. [references/verified-command-surface.md](references/verified-command-surface.md)
 3. 本目录 reference 中的 `Private CLI 差异`
 
+## CLI flag 语义层
+
+先判断 flag 属于哪一层，再决定能否用于“过滤后端数据”：
+
+| 语义层 | 典型 flag | 职责 |
+|---|---|---|
+| Request input | 命令自身 flags、`--params/-P`、`--set`、支持 backend projection 的 `--select` | 构造后端请求，影响查询条件、分页、字段 projection 或写入内容 |
+| Execution control | `--dry-run`、`--refresh` | 控制 CLI 执行流程，不进入业务请求数据 |
+| Output display | `--format`、`--envelope`、`--verbose`、`--output-select` | 控制返回后的本地展示，不改变后端查询语义 |
+| Compat / lower-level | `--fields` 等 API-native 参数 | 直接暴露底层 API 能力，仅在命令特定兼容场景使用 |
+
+Projection 规则：
+
+- `--select` 的目标语义是后端字段 projection。当前默认只在 `workitem get`、`workitem search-by-params` 上作为 productized projection facade 使用，并映射为后端 `data.fields`。
+- `--output-select` 是本地返回后裁剪，适合减少展示字段；它不减少后端返回数据量，也不改变过滤条件。
+- `--fields` 是 API-native compatibility input。若命令同时可用 `--select` 与 `--fields`，默认优先 `--select`；不要在同一命令里组合二者。
+- 未声明 backend projection 的命令上，`--select` 会直接失败；若目标只是展示裁剪，改用 `--output-select`，若目标是后端 projection，换用支持 projection 的命令。
+
+Dry-run 规则：
+
+- `--dry-run` 验证的是 normalized backend request construction。涉及 `--params/-P`、`--set`、时间范围、分页、projection 或高风险写入时，先 dry-run，确认 `.params` 中出现预期请求字段。
+- 不要把 dry-run 输出当成本地最终渲染形状证明；`--format`、`--envelope`、`--verbose`、`--output-select` 属于输出展示层。
+
 **查询职责边界**：
 
 - `workitem search-filter`：常见场景的简化查询路径，适合名称模糊匹配和内置维度过滤（业务线、时间、状态、优先级、tag、user_keys）。
@@ -103,7 +126,9 @@ meegle inspect <resource>.<method> --format json
 0. **用户提供 URL 时**：`meegle url decode --url '<URL>' --format json`，按 url-kinds.md 路由
 1. 确认空间和类型：直接用用户提供的 `simple_name` 作为 `project_key`；必要时用 `workitem meta-types` 确认类型
 2. 读路径发现：`view search`、`view get`、`workitem search-filter`（基础查询）、`workitem search-by-params`（字段级查询）、`workitem get`、`workflow list-state-transitions`
-   - 只需摘要时加 `--select id,name,current_nodes,work_item_status,created_at` 投影，避免大响应体
+   - `workitem get` / `workitem search-by-params` 只需后端字段 projection 时，用 `--select id,name,current_nodes,work_item_status,created_at`
+   - `workitem search-filter` 这类列表响应，只需减少展示字段时用 `--output-select id,name,current_nodes,work_item_status,created_at`
+   - `view items` 这类 object-wrapper 响应，只需减少展示字段时用 `--output-select data.name,data.view_id,data.work_item_id_list`
 3. 写操作：`workitem create/update/remove/abort/restore/freeze/unfreeze`、`comment add/update/remove`、`subtask create/update/operate`
 4. 临时或破坏性测试数据完成后清理
 
