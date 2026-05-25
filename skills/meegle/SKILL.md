@@ -52,6 +52,8 @@ meegle inspect <resource>.<method> --format json
 2. [references/verified-command-surface.md](references/verified-command-surface.md)
 3. 本目录 reference 中的 `Private CLI 差异`
 
+涉及 `--select` 时，不要猜命令是否支持 backend projection。先看 `inspect --format json` 的 projection metadata，再决定用 `--select` 还是 `--output-select`。
+
 ## CLI flag 语义层
 
 先判断 flag 属于哪一层，再决定能否用于“过滤后端数据”：
@@ -69,10 +71,12 @@ Projection 规则：
 - `--output-select` 是本地返回后裁剪，适合减少展示字段；它不减少后端返回数据量，也不改变过滤条件。
 - `--fields` 是 API-native compatibility input。若命令同时可用 `--select` 与 `--fields`，默认优先 `--select`；不要在同一命令里组合二者。
 - 未声明 backend projection 的命令上，`--select` 会直接失败；若目标只是展示裁剪，改用 `--output-select`，若目标是后端 projection，换用支持 projection 的命令。
+- `inspect --format json` 现在会显式告诉你 `backend_select_supported`、`backend_request_path`、本地 projection flag，以及必要的 path hint；把它当成 capability 探查入口，而不是靠猜。
 
 Dry-run 规则：
 
 - `--dry-run` 验证的是 normalized backend request construction。涉及 `--params/-P`、`--set`、时间范围、分页、projection 或高风险写入时，先 dry-run，确认 `.params` 中出现预期请求字段。
+- verified command 的 dry-run 遇到明显未知顶层参数时会直接 fail fast，不再只给 advisory。出现这类错误时，先修正 flag / `--params` 顶层 key，或先跑 `meegle inspect <resource>.<method> --format json` 对照命令面。
 - 不要把 dry-run 输出当成本地最终渲染形状证明；`--format`、`--envelope`、`--verbose`、`--output-select` 属于输出展示层。
 
 **查询职责边界**：
@@ -126,6 +130,7 @@ Dry-run 规则：
 0. **用户提供 URL 时**：`meegle url decode --url '<URL>' --format json`，按 url-kinds.md 路由
 1. 确认空间和类型：直接用用户提供的 `simple_name` 作为 `project_key`；必要时用 `workitem meta-types` 确认类型
 2. 读路径发现：`view search`、`view get`、`workitem search-filter`（基础查询）、`workitem search-by-params`（字段级查询）、`workitem get`、`workflow list-state-transitions`
+   - 准备使用 `--select` 前，先用 `meegle inspect <resource>.<method> --format json` 看 projection metadata，而不是从历史经验猜 capability
    - `workitem get` / `workitem search-by-params` 只需后端字段 projection 时，用 `--select id,name,current_nodes,work_item_status,created_at`
    - `workitem search-filter` 这类列表响应，只需减少展示字段时用 `--output-select id,name,current_nodes,work_item_status,created_at`
    - `view items` 这类 object-wrapper 响应，只需减少展示字段时用 `--output-select data.name,data.view_id,data.work_item_id_list`

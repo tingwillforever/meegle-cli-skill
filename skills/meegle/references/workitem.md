@@ -63,10 +63,12 @@
 
 规则：
 
+- 准备使用 `--select` 时，先运行 `meegle inspect workitem.get --format json` 或 `meegle inspect workitem.search-by-params --format json`，确认 `projection.backend_select_supported == true`。
 - 在上述命令上，默认用 `--select` 表达产品化字段 projection。
 - 不要同时传 `--select` 与 `--fields`。
 - `workitem search-filter` 主要用于内置维度过滤；它不声明 backend projection，传 `--select` 会直接报错。如果只是想少展示字段，用 `--output-select`。
 - 排障时先用 `--dry-run` 查看 `.params.data.fields` 是否出现，确认 projection 已进入后端请求。
+- verified command 的 dry-run 如果因为未知顶层参数直接失败，优先检查 flag 名、`--params` 顶层 key，或重新用 `inspect --format json` 对照当前命令面。
 - 当前后端在 `workitem get` / `workitem search-by-params` 上主要会收敛 `fields[]` 自定义字段集合；`id`、`name`、`current_nodes`、`work_item_status`、`created_at` 等固定顶层字段仍可能按接口契约返回。
 
 ---

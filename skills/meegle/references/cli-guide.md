@@ -20,6 +20,13 @@ meegle inspect comment.add --format json
 
 当历史示例与 inspect 不一致时，优先相信 inspect 输出。
 
+准备使用 `--select` 时，先看 `inspect --format json` 里的 projection metadata：
+
+- `projection.backend_select_supported`
+- `projection.backend_request_path`
+- `projection.local_projection_flag`
+- `projection.local_path_hint`（如 `view items` 的 `data.<field>`）
+
 ## Flag 语义层
 
 全局 flag 不是同一类能力。先判断语义层，再判断能否影响后端请求。
@@ -54,6 +61,12 @@ meegle workitem search-filter \
 
 涉及嵌套对象、时间范围、分页、projection 或写操作时，先加 `--dry-run`，检查输出里的 `.params`，确认预期字段已经进入后端请求。
 
+verified command 的 dry-run 如果发现明显未知顶层参数，现在会直接 fail fast，而不是继续输出看似正常的 payload。遇到这种情况时：
+
+1. 先修正 flag 名或 `--params` 顶层 key
+2. 用 `meegle inspect <resource>.<method> --format json` 对照当前 public flag 集
+3. 如怀疑本地 schema 过期，再加 `--refresh`
+
 ### Backend projection 与本地输出裁剪
 
 `--select` 与 `--output-select` 不是同义词：
@@ -62,6 +75,8 @@ meegle workitem search-filter \
 |---|---|---|
 | 减少后端返回字段 | `--select id,name,work_item_status` | 进入后端请求；当前首批支持 `workitem get`、`workitem search-by-params` |
 | 只减少本地展示字段 | `--output-select id,name,work_item_status` | 后端仍返回原始结果，CLI 在响应后裁剪展示 |
+
+判断某个命令能不能用 `--select`，不要凭经验猜；先看 `inspect --format json` 的 `projection.backend_select_supported`。
 
 示例：支持 backend projection 的命令。
 
@@ -101,6 +116,8 @@ meegle workitem search-filter \
 - CLI 会直接返回错误，不再做本地裁剪 fallback。
 - 目标是本地展示裁剪：改用 `--output-select`。
 - 目标是减少后端字段：改用 `workitem get` / `workitem search-by-params` 等支持 backend projection 的命令，或移除 projection 诉求。
+
+说明：当前 backend projection 在 `workitem get` / `workitem search-by-params` 上主要会收敛 `fields[]` 自定义字段集合；固定顶层字段仍可能按接口契约返回。
 
 `--output-select` 的路径需要匹配真实响应形状：
 
