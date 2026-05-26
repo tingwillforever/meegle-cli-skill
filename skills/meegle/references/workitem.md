@@ -46,6 +46,17 @@
 
 ---
 
+## 当前用户相关查询
+
+当用户说“我的”“我参与的”“与我相关的”某类工作项时，不能直接查询该类型全量列表。
+
+- 若使用 `workitem search-filter`，必须显式加 `--user-keys '["<meegle_user_key>"]'`。`--user-keys` 匹配 creator / follower / role owner，语义是“与这些用户相关的工作项”。
+- 不带 `--user-keys` 的查询，只能解释为“空间内该类型工作项列表”，不能默认解释为“当前用户相关列表”。
+- 若用户要求更严格的字段级人员语义，如“我负责的”“people 字段包含我”，改用 `workitem search-by-params` 的 `people` 条件或对应字段条件。
+- 当前登录用户的 `meegle_user_key` 优先来自 `meegle auth whoami --format json`。
+
+---
+
 ## 字段 projection 与本地输出裁剪
 
 工作项读取场景里有三种容易混淆的字段选择能力：
@@ -75,7 +86,7 @@
 
 ## 关联字段过滤
 
-`work_item_related_select` 类型字段（如"所属项目"）在 `search-by-params` 中过滤时：
+`workitem_related_select` / `work_item_related_select` 类型字段（如"所属项目"）在 `search-by-params` 中过滤时：
 
 1. **value 是被关联工作项的数字 ID**（number 类型，不是字符串）
 2. **ID 不是直接已知的**，需先查出来：先确定目标工作项类型，再按该类型的查询职责选命令
@@ -102,7 +113,7 @@ meegle workitem search-by-params \
 meegle workitem meta-fields \
   --project-key PROJ \
   --work-item-type-key TYPE_KEY \
-  --format json | jq '[.data[] | select(.field_type_key=="work_item_related_select") | {field_key, field_name}]'
+  --format json | jq '[.data[] | select(.field_type_key=="workitem_related_select" or .field_type_key=="work_item_related_select") | {field_key, field_name, field_type_key}]'
 
 # Step 3：用数字 ID 过滤
 # search-by-params --search-group 中：

@@ -53,6 +53,7 @@ meegle view items \
 ```
 
 注意：`view items` 返回的是 object-wrapper，不是直接数组，因此不要写成 `--output-select name,view_id`。
+如果误写成 bare key，CLI 会直接返回 remediation，提示你改成 `data.xxx` 并指向 `meegle inspect view.items --format json`。
 
 推荐先执行：
 
@@ -65,6 +66,7 @@ meegle inspect view.items --format json
 - `projection.backend_select_supported == false`
 - `projection.local_projection_flag == "--output-select"`
 - `projection.local_path_hint == "data.<field>"`
+- `decision_guidance.wrapper_path_hint == "data.<field>"`
 
 当前 public CLI 不暴露 `view panoramic-items`。如果后续确认需要条件视图读取能力，应单独评审后再开放。
 

@@ -54,51 +54,77 @@ meegle inspect <resource>.<method> --format json
 
 涉及 `--select` 时，不要猜命令是否支持 backend projection。先看 `inspect --format json` 的 projection metadata，再决定用 `--select` 还是 `--output-select`。
 
-## CLI flag 语义层
+## CLI 执行语义
 
-先判断 flag 属于哪一层，再决定能否用于“过滤后端数据”：
+把主文档当成决策入口，细节按 Reference Routing 下钻。关键原则：
 
-| 语义层 | 典型 flag | 职责 |
-|---|---|---|
-| Request input | 命令自身 flags、`--params/-P`、`--set`、支持 backend projection 的 `--select` | 构造后端请求，影响查询条件、分页、字段 projection 或写入内容 |
-| Execution control | `--dry-run`、`--refresh` | 控制 CLI 执行流程，不进入业务请求数据 |
-| Output display | `--format`、`--envelope`、`--verbose`、`--output-select` | 控制返回后的本地展示，不改变后端查询语义 |
-| Compat / lower-level | `--fields` 等 API-native 参数 | 直接暴露底层 API 能力，仅在命令特定兼容场景使用 |
+- 先判断 flag 语义层：request input 会进入后端请求；execution control 控制执行；output display 只影响本地展示；compat / lower-level 仅在命令特定兼容场景使用。
+- `--select` 是后端字段 projection；只有 `inspect --format json` 声明 `projection.backend_select_supported == true` 时才用。
+- `--output-select` 只裁剪本地展示，不减少后端返回、不改变过滤条件。
+- 涉及嵌套参数、时间范围、分页、projection 或写操作时，先用 `--dry-run` 确认 normalized request。
+- CLI 语义层、projection、dry-run、`--fields` 兼容边界的完整规则见 [references/cli-guide.md](references/cli-guide.md)。
 
-Projection 规则：
+## 查询主路径
 
-- `--select` 的目标语义是后端字段 projection。当前默认只在 `workitem get`、`workitem search-by-params` 上作为 productized projection facade 使用，并映射为后端 `data.fields`。
-- `--output-select` 是本地返回后裁剪，适合减少展示字段；它不减少后端返回数据量，也不改变过滤条件。
-- `--fields` 是 API-native compatibility input。若命令同时可用 `--select` 与 `--fields`，默认优先 `--select`；不要在同一命令里组合二者。
-- 未声明 backend projection 的命令上，`--select` 会直接失败；若目标只是展示裁剪，改用 `--output-select`，若目标是后端 projection，换用支持 projection 的命令。
-- `inspect --format json` 现在会显式告诉你 `backend_select_supported`、`backend_request_path`、本地 projection flag，以及必要的 path hint；把它当成 capability 探查入口，而不是靠猜。
+**查询快速决策**：
 
-Dry-run 规则：
+- 用户给 URL：第一步只做 `meegle url decode --url '<URL>' --format json`，再按 `url_kind` 路由。
+- 只按名称、时间、状态、优先级、tag、业务线、当前用户相关等内置维度查列表：优先 `workitem search-filter`。
+- 涉及自定义字段、关联字段、复杂 AND/OR、字段级人员语义或 `search-filter` 无法表达的条件：使用 `workitem search-by-params`。
+- 需要确认工作项类型：先 `workitem meta-types --project-key <project_key> --format json`，用 `api_name` / `name` 找 `type_key`。
+- 需要确认字段 key、状态 value、枚举 option value：先 `workitem meta-fields --project-key <project_key> --work-item-type-key <type_key> --format json`。
+- 不确定命令参数、projection 或 dry-run 能力：先 `meegle inspect <resource>.<method> --format json`。
 
-- `--dry-run` 验证的是 normalized backend request construction。涉及 `--params/-P`、`--set`、时间范围、分页、projection 或高风险写入时，先 dry-run，确认 `.params` 中出现预期请求字段。
-- verified command 的 dry-run 遇到明显未知顶层参数时会直接 fail fast，不再只给 advisory。出现这类错误时，先修正 flag / `--params` 顶层 key，或先跑 `meegle inspect <resource>.<method> --format json` 对照命令面。
-- 不要把 dry-run 输出当成本地最终渲染形状证明；`--format`、`--envelope`、`--verbose`、`--output-select` 属于输出展示层。
+**复杂查询主体优先策略**：
+
+复杂查询先明确最终要返回的对象类型，再查筛选锚点和字段元数据。用户先提到的对象不一定是查询主体；在“查询 A 的 B / A 下的 B / 关联到 A 的 B”里，通常 `B` 是查询主体，`A` 是筛选锚点。
+
+执行复杂查询前，先在内部明确这四项判断；只有查询歧义较大或需要用户确认时，才展示给用户：
+
+```text
+查询主体：
+筛选锚点：
+过滤条件：
+展示字段：
+```
+
+- 如果查询主体是工作项，主体决定 `work-item-type-key`，也决定应该读取哪个类型的 `meta-fields`。
+- 如果查询主体是视图、评论、子任务、流程状态或发布/部署任务，先走对应 reference 和 `inspect`，不要套用工作项元数据路径。
+- 筛选锚点用于缩小范围；如果锚点是工作项，先定位锚点 ID，再在查询主体类型或对应 reference 中找限制范围的字段/参数。
+- 状态、负责人、版本、迭代、业务线、时间范围通常是过滤条件，不要误判成查询主体。
+- 工作项主体的字段 key、状态 value、枚举 option value 从该工作项类型的 `meta-fields` 获取；非工作项主体按对应 reference 和 `inspect` 确认参数。
+- 只有完成主体判断后，再选择 `search-filter`、`search-by-params`、`workitem get` 或 `view items`。
+- 示例：“查询某项目下待讨论缺陷”应拆成 `查询主体=缺陷`、`筛选锚点=项目`、`过滤条件=状态待讨论`，再在缺陷类型中查“所属项目”字段和“待讨论”状态 value。
 
 **查询职责边界**：
 
 - `workitem search-filter`：常见场景的简化查询路径，适合名称模糊匹配和内置维度过滤（业务线、时间、状态、优先级、tag、user_keys）。
-- `workitem search-by-params`：通用结构化查询路径，可用于任意工作项类型；凡是自定义字段、关联工作项字段、复杂 `search_group` 组合，都走这条路径。
+- `workitem search-by-params`：通用结构化查询路径，可用于任意工作项类型；凡是自定义字段、可搜索的关联字段（以 live `field_type_key` 为准）、复杂 `search_group` 组合，都走这条路径。
 - 当两者都可表达时，优先 `workitem search-filter`；当需要字段级条件，或当前授权/接口契约不适合 `search-filter` 时，改用 `workitem search-by-params`。
 - 不要因为服务端内部可能把部分 `search-filter` 改写为 `search-by-params`，就把两者当成同一层能力；对外仍按上述职责选命令。
 
+**工作项查询前检查单**：
+
+- `project_key`：优先来自用户给出的 `simple_name`；未给出时按“上下文推断”处理。
+- `work_item_type_key`：来自 `workitem meta-types`，不要把 `api_name` 当 UUID type key 传给需要 type key 的命令。
+- 字段 key：来自 `workitem meta-fields`，自定义字段和关联字段都不要按中文字段名猜。
+- 状态 / 枚举 value：来自 `meta-fields` 的 `options[].value`；展示时再映射回中文 label。
+- 关联字段 value：使用被关联工作项的数字 ID，不使用名称、URL 片段或字符串 ID。
+- 当前用户相关查询、展示映射、关联字段过滤细节见 [references/workitem.md](references/workitem.md) 和 [references/search-params-format.md](references/search-params-format.md)。
+
+**关联字段查询限制**：
+
+- `search-by-params` 支持通过 `workitem_related_select` / `work_item_related_select` 和 `workitem_related_multi_select` / `work_item_related_multi_select` 类型字段进行正向查询（以 live `field_type_key` 为准，查询字段值包含指定工作项 ID 的工作项）
+- **不支持** `work_item_related` 类型字段的搜索
+- 反向关联查询优先从父工作项读取关联字段再批量查询；若目标类型有指向父工作项的可搜索关联字段，可用 `search-by-params` 直接查。
+
 **当前用户相关工作项查询约束**：
 
-- 当用户说“我参与的”“我的”“与我相关的”某类工作项时，不能直接查询该类型全量列表。
-- 若使用 `workitem search-filter`，必须显式加 `--user-keys '["<meegle_user_key>"]'`。`--user-keys` 的语义是“与这些用户相关的工作项”，匹配 creator / follower / role owner。
-- 不带 `--user-keys` 的查询，只能解释为“空间内该类型工作项列表”，不能默认解释为“当前用户相关列表”。
-- 若用户要求更严格的字段级人员语义（如“我负责的”“people 字段包含我”），再改用 `workitem search-by-params` 的 `people` 条件或对应字段条件。
+- 用户说“我的”“我参与的”“与我相关的”时，不要默认查询全量列表；按 [references/workitem.md](references/workitem.md) 的当前用户相关查询规则加 `--user-keys` 或改用字段级人员条件。
 
 **查询结果展示规则**：
 
-- 面向用户展示查询结果时，默认输出中文语义或可读 label，不直接输出 opaque key / id / state_key / option value。
-- 若底层返回的是 key/value 形态，先补做映射再展示；原始 key 仅在排障、精确比对、或映射缺失时作为括号附注保留。
-- 常见映射来源：状态用 `workitem meta-fields` 的 `options[].label`；业务线优先用 `auth whoami` 的 names 或 `space business-lines`；角色用 `workitem meta-roles`；人员用 `user query` / `team list-members`。
-- `current_nodes` 这类本身已返回节点中文名的字段，直接展示名称，不要再退化成内部 key。
+- 面向用户展示查询结果时，默认输出中文语义或可读 label；底层 key / id / state_key 仅在排障、精确比对或映射缺失时保留。映射细节见 [references/workitem.md](references/workitem.md)。
 
 不要猜测：
 
@@ -123,21 +149,18 @@ Dry-run 规则：
 - 单个结果 → 直接使用，不询问
 - 多个结果 → 编号列表呈现，等待用户选择；业务线多个时先选业务线，再用业务线 ID 过滤后续查询
 
-推断结果缓存会话内，同一会话不重复询问。推断完成后询问是否保存到 Agent memory。
+推断结果仅在本轮会话内缓存，同一会话不重复询问。只有用户明确要求保存偏好，或当前环境明确提供可用 memory 工具时，才考虑持久化，避免无谓打断。
 
 ## 推荐执行顺序
 
 0. **用户提供 URL 时**：`meegle url decode --url '<URL>' --format json`，按 url-kinds.md 路由
-1. 确认空间和类型：直接用用户提供的 `simple_name` 作为 `project_key`；必要时用 `workitem meta-types` 确认类型
-2. 读路径发现：`view search`、`view get`、`workitem search-filter`（基础查询）、`workitem search-by-params`（字段级查询）、`workitem get`、`workflow list-state-transitions`
-   - 准备使用 `--select` 前，先用 `meegle inspect <resource>.<method> --format json` 看 projection metadata，而不是从历史经验猜 capability
-   - `workitem get` / `workitem search-by-params` 只需后端字段 projection 时，用 `--select id,name,current_nodes,work_item_status,created_at`
-   - `workitem search-filter` 这类列表响应，只需减少展示字段时用 `--output-select id,name,current_nodes,work_item_status,created_at`
-   - `view items` 这类 object-wrapper 响应，只需减少展示字段时用 `--output-select data.name,data.view_id,data.work_item_id_list`
-3. 写操作：`workitem create/update/remove/abort/restore/freeze/unfreeze`、`comment add/update/remove`、`subtask create/update/operate`
-4. 临时或破坏性测试数据完成后清理
+1. 复杂查询先执行“查询主体 / 筛选锚点 / 过滤条件 / 展示字段”判断
+2. 确认空间、主体类型和锚点：工作项主体用 `workitem meta-types` / `meta-fields`；非工作项主体按 Reference Routing 进入对应 reference，并用 `inspect` 确认参数
+3. 读路径发现：`view list`、`view items`、`workitem search-filter`、`workitem search-by-params`、`workitem get`、`workflow list-state-transitions`
+4. 写操作：`workitem create/update/remove/abort/restore/freeze/unfreeze`、`comment add/update/remove`、`subtask create/update/operate`
+5. 临时或破坏性测试数据完成后清理
 
-**并发规则**：无依赖的命令并行发起；有依赖必须串行（`space list` → `workitem meta-types` → `workitem meta-create-fields`；`workitem get` → `workitem update`）。分页查询先读首页取总数，按需翻页，只选必要字段。
+**并发规则**：无依赖的命令并行发起；有依赖必须串行。分页查询先读首页取总数，按需翻页，只选必要字段。
 
 ## Reference Routing
 

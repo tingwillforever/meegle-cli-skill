@@ -26,6 +26,9 @@ meegle inspect comment.add --format json
 - `projection.backend_request_path`
 - `projection.local_projection_flag`
 - `projection.local_path_hint`（如 `view items` 的 `data.<field>`）
+- `decision_guidance.projection_mode`
+- `decision_guidance.wrapper_path_hint`
+- `decision_guidance.dry_run_recommended`
 
 ## Flag 语义层
 
@@ -64,8 +67,9 @@ meegle workitem search-filter \
 verified command 的 dry-run 如果发现明显未知顶层参数，现在会直接 fail fast，而不是继续输出看似正常的 payload。遇到这种情况时：
 
 1. 先修正 flag 名或 `--params` 顶层 key
-2. 用 `meegle inspect <resource>.<method> --format json` 对照当前 public flag 集
-3. 如怀疑本地 schema 过期，再加 `--refresh`
+2. 若 CLI 给出高置信度 `did-you-mean`，优先按该建议改写
+3. 用 `meegle inspect <resource>.<method> --format json` 对照当前 public flag 集
+4. 如怀疑本地 schema 过期，再加 `--refresh`
 
 ### Backend projection 与本地输出裁剪
 
@@ -114,6 +118,7 @@ meegle workitem search-filter \
 如果在非 projection-capable 命令上使用 `--select`：
 
 - CLI 会直接返回错误，不再做本地裁剪 fallback。
+- 错误 remediation 会同时指向 `meegle inspect <resource>.<method> --format json` 和与该命令返回形状匹配的 `--output-select` 改写方式。
 - 目标是本地展示裁剪：改用 `--output-select`。
 - 目标是减少后端字段：改用 `workitem get` / `workitem search-by-params` 等支持 backend projection 的命令，或移除 projection 诉求。
 
@@ -123,6 +128,7 @@ meegle workitem search-filter \
 
 - 列表响应或 `{data:[...]}` wrapper：通常可以直接写 `id,name,work_item_status`，CLI 会自动投影到数组元素。
 - object-wrapper 响应：需要显式写 wrapper 路径，例如 `view items` 用 `--output-select data.name,data.view_id,data.work_item_id_list`。
+- 对已知 object-wrapper 命令，如果误写成 bare key，CLI 会返回 wrapper-aware remediation，并提示你用 `inspect` 确认 `data.xxx` 路径。
 
 ### `--fields` 兼容边界
 
