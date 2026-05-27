@@ -7,7 +7,7 @@
 > 此路径是 **conditional**（非 default-safe）。执行前先 `meegle inspect workflow.transition-state` 确认命令可用。
 
 > 与上游 SaaS 版的关键差异（私有 cli）：
-> - **按姓名查 userkey** 不可用：需要 userkey 时让用户提供 email 或 user_key。
+> - **按姓名查 userkey** 默认只用 `meegle user search --query "姓名" --project-key PROJ --format json`；若出现同名结果，展示候选 `email` / `user_key` 让用户确认。
 > - **transition_id 必须从 query 获取**：不能猜测，每个空间/模板的 transition 配置不同。
 
 ---

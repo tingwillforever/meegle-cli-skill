@@ -7,7 +7,7 @@
 > 与上游 SaaS 版的关键差异（私有 cli）：
 > - **角色（role）字段不可写**：私有 mcp 的 `workitem.update` 不暴露 `role_operate` 参数。如果用户要改角色成员，明确告知"私有部署的 cli 暂不支持角色字段写入,请到 web 端操作"。
 > - **附件操作**按 MCP 实际公开命令执行：上传通用文件走 `attachment upload-file`，工作项附件走 `attachment upload` / `attachment download` / `attachment delete`；详情见 [`attachment.md`](attachment.md)。
-> - **按姓名查 userkey** 不可用：`user query` 只接受 `user_key` / `out_id` / `email`，不支持中文姓名搜索。需要 userkey 时让用户提供 email 或 user_key 字符串。
+> - **按姓名查 userkey** 默认只用 `meegle user search --query "姓名" --project-key PROJ --format json`；若出现同名结果，展示候选 `email` / `user_key` 让用户确认。
 
 ---
 
@@ -62,7 +62,7 @@ meegle workitem meta-create-fields \
 | field_type_key | 转换规则 & field_value 传参 |
 |---|---|
 | `text` / `number` / `bool` / `link` | 直接字符串：`"100"` / `"true"` / `"https://..."` |
-| `user` | 单个 userkey 字符串。**用户给姓名时** → 让用户提供 email 或现有可见 userkey，不能用 `user query` 反查姓名 |
+| `user` | 单个 userkey 字符串。**用户给姓名时** → 默认先用 `meegle user search --query "姓名" --project-key PROJ --format json`；若出现同名结果，展示候选 `email` / `user_key` 让用户确认 |
 | `multi-user` | **stringified** 一维 userkey 数组：`"[\"key1\",\"key2\"]"` |
 | `select` / `radio` | 纯字符串 option_id：`"opt_xxx"` |
 | `multi-select` | **stringified** 对象数组：`"[{\"option_id\":\"xxx\"}, {\"option_id\":\"yyy\"}]"` |

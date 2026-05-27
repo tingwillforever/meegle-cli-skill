@@ -159,6 +159,8 @@ meegle workflow list-state-transitions \
 
 ## subtask create
 
+默认沿用节点/后端默认负责人逻辑（不显式传 `--assignee`）：
+
 ```bash
 meegle subtask create \
   --project-key PROJ \
@@ -166,6 +168,19 @@ meegle subtask create \
   --work-item-id 12345 \
   --node-id NODE_ID \
   --name "子任务" \
+  --format json
+```
+
+显式指定负责人时：
+
+```bash
+meegle subtask create \
+  --project-key PROJ \
+  --work-item-type-key TYPE_KEY \
+  --work-item-id 12345 \
+  --node-id NODE_ID \
+  --name "子任务" \
+  --assignee '["USER_KEY"]' \
   --format json
 ```
 

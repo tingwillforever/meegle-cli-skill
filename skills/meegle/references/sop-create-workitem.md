@@ -6,7 +6,7 @@
 
 > 与上游 SaaS 版的关键差异（私有 cli）：
 > - **角色（role）字段不可写**：私有 mcp 的 `workitem.create` 不暴露 `role_operate` 参数。如需设置角色成员，告知用户"私有部署 cli 暂不支持角色字段写入，请到 web 端操作"。
-> - **按姓名查 userkey** 不可用：`user query` 只接受 `user_key` / `out_id` / `email`，不支持中文姓名搜索。
+> - **按姓名查 userkey** 默认只用 `meegle user search --query "姓名" --project-key PROJ --format json`；若出现同名结果，展示候选 `email` / `user_key` 让用户确认。
 > - **模板 ID 是必填项**：创建时必须传 `--template-id`。
 
 ---
@@ -85,7 +85,7 @@ meegle workitem meta-create-fields \
 | 来源 | 转换 |
 |------|------|
 | 字段 shape（select / multi_user / schedule / 富文本 / 关联字段 等任何类型） | 一律查 [field-value-format.md](field-value-format.md) |
-| 人名 | 让用户提供 email 或 user_key（私有 cli 不支持姓名搜索） |
+| 人名 | 默认先用 `meegle user search --query "姓名" --project-key PROJ --format json`；若出现同名结果，展示候选 `email` / `user_key` 让用户确认 |
 | 枚举值 | 从 `meta-create-fields` 的 `options[].value` 取真实 option_id；**禁止照搬官方文档示例的 `"0"`/`"1"`** |
 | 日期 | 转为毫秒时间戳 |
 | 关联字段名称→ID | 用 `search-filter`/`search-by-params` 解析后传 number（见 [field-value-extras.md](field-value-extras.md)）|

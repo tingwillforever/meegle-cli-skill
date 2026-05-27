@@ -182,7 +182,7 @@ meegle inspect <resource>.<method> --format json
 | URL 解析和 SOP 路由 | [references/url-kinds.md](references/url-kinds.md) |
 | 视图查询 | [references/view.md](references/view.md) |
 | 附件上传/下载 | [references/attachment.md](references/attachment.md) |
-| 评论、团队成员、子任务等低频命令 | [references/misc.md](references/misc.md) |
+| 评论、空间团队、子任务等低频命令 | [references/misc.md](references/misc.md) |
 | 错误自愈和熔断 | [references/error-handling.md](references/error-handling.md) |
 | **字段值入参 / field_value shape / 写入 select / 富文本 / 关联字段等任何字段** | **[references/field-value-format.md](references/field-value-format.md)（构造任何 field_value 前必读）** |
 | 关联工作项名称转 ID | [references/field-value-extras.md](references/field-value-extras.md) |

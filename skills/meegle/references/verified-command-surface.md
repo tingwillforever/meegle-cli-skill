@@ -27,7 +27,7 @@ Use this file to choose the default-safe command path.
 | `workflow list-state-transitions` | ✅ 支持 | |
 | `workflow list-state-required` | ✅ 支持 | |
 | `workflow meta-node-fields` | ❌ 不支持 | MCP 无对应工具 |
-| `user query` | ✅ 支持 | |
+| `user search` | ✅ 支持 | 姓名/关键字检索需带 `--project-key` |
 | `team list-members` | ✅ 支持 | |
 | `view list` | ✅ 支持 | |
 | `view items` | ✅ 支持 | |
@@ -110,6 +110,7 @@ Prefer these by default:
 - `subtask operate`
 
 ### User
+- `user search`
 - `user query`
 
 ### Private Extensions
@@ -120,7 +121,6 @@ Prefer these by default:
 - `workitem search-filter`
 - `workitem search-by-params`
 - `workitem list-op-records` — body 中 `project_key` 必须是 UUID（CLI 自动从 simple_name 转换，参考 `error-handling.md` Pitfall 10）；upstream spec 不接受 `work_item_type_key` 字段，但 CLI/MCP 仍要求该参数用于客户端授权范围判定，缺失会得到 `work_item_type_required`；额外可选过滤参数：`start_from`、`operator`、`operator_type`、`source_type`、`source`、`start`/`end`
-- `user resolve`
 - `user me`
 - `release deploy-task-*`
 

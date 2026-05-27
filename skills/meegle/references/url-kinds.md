@@ -92,7 +92,7 @@ meegle workitem get \
 | url_kind | 处理 |
 |---|---|
 | `workbench` · `workspaces` · `favorites` · `inbox` | 顶级导航页，**没有具体目标**，请追问 |
-| `teams` · `team_detail` | 团队页；`team_detail` 的 `team_id` 可 `meegle team list-members --project-key PROJ` 获取项目成员（cli 没有按 team_id 直查的接口） |
+| `teams` · `team_detail` | 团队页；`meegle team list-members --project-key PROJ` 会返回当前空间下的团队列表及其 `team_id` / `team_name` / `user_keys` / `administrators`。CLI 当前没有按 `team_id` 直查入口，需要本地过滤匹配目标团队；它也不是空间成员全集 |
 | `templates` · `template_detail` · `template_manage` | 模板中心，本 skill 不做模板操作，**拒绝** |
 | `project_list` | 全部空间列表，追问具体空间 |
 

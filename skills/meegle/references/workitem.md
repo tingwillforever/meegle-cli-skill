@@ -40,7 +40,7 @@
 - `select` / `multi-select` / `tree-select` 等枚举字段：优先显示 `label`，不要把 `value` 直接展示给用户
 - `business` / 业务线 ID：用 `meegle auth whoami --format json` 的 `business_line_names` 或 `meegle space business-lines` 返回名称回填
 - 角色 key：用 `meegle workitem meta-roles --project-key PROJ --work-item-type-key TYPE_KEY --format json` 回填角色名称
-- 人员 user_key：必要时用 `meegle user query --user-keys '["USER_KEY"]' --format json` 或 `meegle team list-members --project-key PROJ --format json` 回填姓名
+- 人员 user_key：必要时用 `meegle user query --user-keys '["USER_KEY"]' --format json` 回填精确对象；若上下文明确是“空间下团队成员”，再用 `meegle team list-members --project-key PROJ --format json` 查看团队列表及其 `user_keys` / `administrators`，但不要把它当成空间成员全集
 
 如果一时拿不到映射，先明确标注“原始 key”，不要把它误写成中文语义。
 

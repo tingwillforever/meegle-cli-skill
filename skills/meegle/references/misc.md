@@ -16,11 +16,11 @@
 
 ---
 
-## 团队成员
+## 空间团队
 
 ### team list-members
 
-查看空间成员。用于人员消歧或确认用户是否属于空间。
+查看当前 `project-key` 下的团队列表及其成员。返回项包含 `team_id`、`team_name`、`user_keys`、`administrators`。该命令当前映射到 `space.teamMembers`，语义是“空间下团队成员”，不是空间成员全集；空间成员范围通常大于这些团队成员的并集。CLI 也不提供按 `team_id` 直查单个团队的入口，需要本地按返回结果过滤。适用于查看某个团队的成员/管理员，或在明确目标属于某个团队时做人工比对；不要用它断言“某人不在空间里”。
 
 ```bash
 meegle team list-members \
@@ -31,6 +31,14 @@ meegle team list-members \
 ## 子任务
 
 子任务常用路径仍按主 SOP 的先读后写规则：先 `workflow list-state-transitions` 获取合法 `node_id`，再执行子任务命令。
+
+创建子任务时，若用户**显式指定负责人**，按用户给出的标识设置 `--assignee`：
+
+- 已知 `user_key`：直接传 `subtask create --assignee '["USER_KEY"]'`
+- 已知 `email` / `out_id`：先用 `meegle user query` 做精确解析，再取 `user_key`
+- 已知中文名/关键词：先用 `meegle user search --query "姓名" --project-key PROJ --format json` 解析到 `user_key`；若同名冲突，展示候选 `email` / `user_key` 让用户确认
+
+若用户**未指定负责人**，默认省略 `--assignee`，保留节点/后端默认负责人逻辑；不要额外猜测用户，也不要把“未指定负责人”误改写成必须显式传某个 `user_key`。角色负责人改走 `--role-assignee`。
 
 ```bash
 meegle subtask list \
