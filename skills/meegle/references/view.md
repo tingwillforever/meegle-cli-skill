@@ -11,6 +11,11 @@
 
 视图 URL 路由先看 [url-kinds.md](url-kinds.md)。不要从 URL path 推断视图类型；必须先用 `view list` 读取 `view_type`。
 
+关键分流：
+
+- `view_type=0` 或 `view_type=2`：可继续用 `view items` 读取视图包装信息和 `work_item_id_list`
+- `view_type=1`：这是条件视图；当前 public CLI 不暴露条件视图 item reader / panoramic-items，确认后立即停止读取路径，向用户说明限制，不要再尝试 `view items`
+
 ---
 
 ## view list
@@ -55,6 +60,35 @@ meegle view items \
 注意：`view items` 返回的是 object-wrapper，不是直接数组，因此不要写成 `--output-select name,view_id`。
 如果误写成 bare key，CLI 会直接返回 remediation，提示你改成 `data.xxx` 并指向 `meegle inspect view.items --format json`。
 
+如果用户要“读取视图里的工作项”而不是只要 ID 列表，`view items` 只负责返回视图包装信息和 `work_item_id_list`。拿到 ID 后，继续用同一个 `work_item_type_key` 批量读取标题或详情。`workitem get` 一次最多传 50 个工作项 ID；超过 50 个时先取前 50 个做结果核验，或按 50 个一批分批查询。
+
+```bash
+meegle workitem get \
+  --project-key PROJ \
+  --work-item-type-key TYPE_KEY \
+  --work-item-ids '[12345,67890]' \
+  --output-select id,name \
+  --format json
+```
+
+不要把 `view items` 的 `data.name` 当成工作项标题；它是视图名称。
+
+如果只是确认 URL 指向的视图类型，`view list` 可以用较小输出定位目标视图，避免展开大量视图配置：
+
+```bash
+meegle view list \
+  --project-key PROJ \
+  --work-item-type-key TYPE_KEY \
+  --page-num 1 \
+  --page-size 100 \
+  --output-select data.view_id,data.name,data.view_type \
+  --format json
+```
+
+在当前页命中目标 `view_id` 后立即进入 `view items`；未命中时再按页翻查，不要用大段 shell 管道展开全量输出。
+
+如果目标 `view_id` 不在首页，按页查询是允许的，但要保持有界：顺序查页，不要并发扫 1-10 页；命中目标页后立即停止。普通确认视图类型时不需要继续读取 items 或展开所有视图。
+
 推荐先执行：
 
 ```bash
@@ -69,6 +103,8 @@ meegle inspect view.items --format json
 - `decision_guidance.wrapper_path_hint == "data.<field>"`
 
 当前 public CLI 不暴露 `view panoramic-items`。如果后续确认需要条件视图读取能力，应单独评审后再开放。
+
+对于 `view_type=1`，不要把 `view items` 当作自愈 fallback。`view items` 只适用于固定视图或系统列表视图；条件视图应 fail-fast，报告“当前 CLI 不支持直接读取条件视图 items”。
 
 ## 条件与删除类视图操作
 

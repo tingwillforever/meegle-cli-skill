@@ -6,7 +6,7 @@ For the private deployment path, use:
 
 - [runtime-private-remote-mcp.md](runtime-private-remote-mcp.md)
 - remote MCP SSO via `meegle auth login`
-- `meegle doctor --format json`
+- `meegle doctor --format json`（按需诊断）
 
 Treat `No project membership found` as a valid authenticated-but-not-authorized state. In that case, do not continue to business commands; the user must be added to a project-management work item by an administrator.
 

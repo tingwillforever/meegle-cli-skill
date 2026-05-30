@@ -515,7 +515,7 @@ shape 与 `select` 完全一致：
 | `vote-boolean` / `vote-option` / `vote-option-multi` | 仅支持页面交互 |
 | 计算字段 / 公式（出参 type 为 `number`/`bool`/`string` 但 alias 是公式字段）| 只读 |
 | `aborted` | 走 `workitem abort` / `workitem restore` |
-| `deleted` | 走 `workitem remove` / `workitem restore` |
+| `deleted` | 当前 public CLI 不暴露删除工作项命令；如需删除，只能走页面或经单独评审的内部流程 |
 | `start_time` / `finish_time` / `created_at` / `updated_at` / `deleted_at` / `archiving_date` / `archiving_status` | 系统计算 |
 | `current_status_operator` | 系统计算 |
 | `template` / `template_id` / `template_type` | 用 `workitem create` 的 `--template-id` 顶层参数 |

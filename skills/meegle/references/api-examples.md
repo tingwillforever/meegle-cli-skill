@@ -2,7 +2,7 @@
 
 These examples are aligned to the current private installed CLI path.
 
-## doctor
+## doctor（按需诊断）
 
 ```bash
 meegle doctor --format json
@@ -135,6 +135,17 @@ meegle view items \
 ```
 
 `view items` 不支持 backend projection。传 `--select` 会直接失败；若只是想减少本地展示字段，使用 `--output-select data.xxx`。
+
+若要展示视图中的工作项标题，继续使用 `work_item_id_list` 调 `workitem get`。一次最多传 50 个 ID；超过 50 个时先取前 50 个做核验，或每 50 个一批查询：
+
+```bash
+meegle workitem get \
+  --project-key PROJ \
+  --work-item-type-key TYPE_KEY \
+  --work-item-ids '[12345,67890]' \
+  --output-select id,name \
+  --format json
+```
 
 ## comment add
 

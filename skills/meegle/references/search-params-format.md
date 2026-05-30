@@ -54,7 +54,7 @@
 ### ⚠️ work_item_status 特殊规则
 
 - value 是状态的 `state_key`，**不是** display name；内置状态是可读字符串（如 `"started"`、`"Finished"`），自定义状态是 opaque ID
-- state_key 来源：`workitem meta-fields` 或 `workitem meta-create-fields` 中 `work_item_status` 字段的 `options[].value`
+- state_key 来源：查询路径默认从 `workitem meta-fields` 中 `work_item_status` 字段的 `options[].value` 获取；不要为了 search/filter 回到 `meta-create-fields`
 - **不能同时查询「已终止」和「未终止」的工作项**
 - 筛选已终止：`=` 或 `HAS ANY OF` 时传 `closed`（节点流）/ `systemEnded`（状态流）
 - 排除已终止：`!=` 或 `HAS NONE OF` 时**无需**传 `closed`/`systemEnded`，系统默认排除
@@ -125,7 +125,7 @@ Python 换算：`int(datetime(..., tzinfo=tz).timestamp() * 1000)`
 | `link` | `~` `!~` `=` `!=` `IS NULL` `IS NOT NULL` | string | — |
 | `bool` | `=` `!=` `IS NULL` `IS NOT NULL` | bool | 空值用 `IS NULL` |
 | `signal` | `=` `!=` `HAS ANY OF` `HAS NONE OF` | `list<string>` | `"undefined"` 暂无信息 / `"null"` 进行中 / `"false"` 未通过 / `"true"` 已通过 |
-| `select` | `=` `!=` `HAS ANY OF` `HAS NONE OF` `IS NULL` `IS NOT NULL` | `list<string>` | 选项 value（不是 label），从 `meta-create-fields` 的 `options[].value` 取 |
+| `select` | `=` `!=` `HAS ANY OF` `HAS NONE OF` `IS NULL` `IS NOT NULL` | `list<string>` | 选项 value（不是 label），查询路径默认从 `meta-fields` 的 `options[].value` 取 |
 | `radio` | `=` `!=` `HAS ANY OF` `HAS NONE OF` `IS NULL` `IS NOT NULL` | `list<string>` | 同 select |
 | `multi-select` | `=` `!=` `HAS ANY OF` `HAS NONE OF` `IS NULL` `IS NOT NULL` `CONTAINS` `NOT CONTAINS` | `list<string>` | — |
 | `tree-select` | `=` `!=` `HAS ANY OF` `HAS NONE OF` `IS NULL` `IS NOT NULL` | `list<string>` | — |

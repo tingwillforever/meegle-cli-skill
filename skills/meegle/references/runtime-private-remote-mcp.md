@@ -14,22 +14,38 @@ It is not a local `stdio` / bundled `meegle-mcp` workflow.
 - built-in remote MCP endpoint, or an active profile override with `mcp_server_url`
 - successful `meegle auth login`
 
-## Preflight
+## On-demand diagnostics
 
-Run this before business commands:
+不要把 `meegle doctor --format json` 当成每次业务命令的固定前置。默认直接走业务命令；只有在以下情况再跑 `doctor`：
+
+- 用户主动要求诊断
+- 登录 / 认证 / 配置异常
+- 业务命令报错但错误信息不足以定位根因
+- `inspect --format json` 显示 `runtime_source != "live"`，或怀疑命令面漂移
 
 ```bash
 meegle doctor --format json
 ```
 
-Expect:
+重点看：
+
+- `overall_status`
+- `checks[].name == "runtime_source"`
+- `checks[].name == "descriptor_drift"`
+- `checks[].name == "live_descriptor"`
+
+理想状态：
 
 - `overall_status: ok`
-- `identity.status: ok`
-- `details.mode: "http"`
-- `details.host` present
+- `runtime_source.status: ok`
+- `runtime_source.details.runtime_source: "live"`
+- `descriptor_drift.status: ok`
 
-If `doctor` fails, stop and fix runtime/auth/config first.
+如果 `doctor` 显示：
+
+- `runtime_source == "snapshot"`：当前 public runtime 仅适合只读诊断；不要继续执行业务命令
+- `descriptor_drift != ok`：视为 CLI 与远端 public descriptor 漂移，先修复环境/发布链路
+- `live_descriptor != ok`：先修复 runtime/auth/config，再继续业务命令
 
 ## Installation model
 

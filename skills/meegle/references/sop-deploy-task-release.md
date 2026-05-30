@@ -21,9 +21,9 @@
 
 ## 执行流程
 
-### STEP 1 — 前置检查
+### STEP 1 — 运行态确认
 
-运行 `meegle doctor --format json` 确认 CLI 环境正常、命令面可用。
+默认直接进入后续只读 release 命令，不把 `meegle doctor --format json` 当固定前置。只有登录/配置异常、只读命令报错但难以定位，或 `inspect --format json` 显示 `runtime_source != "live"` 时，再运行 `doctor`。
 
 ### STEP 2 — 获取发布计划确认
 

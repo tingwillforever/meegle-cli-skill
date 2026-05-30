@@ -66,14 +66,20 @@ meegle workitem get \
 
 | url_kind | 语义 | 处理 |
 |---|---|---|
-| `view_story` / `view_issue` | 需求 / 缺陷视图 | 如果用户想操作"这个视图里的工作项"，要求具体工作项 URL；否则用 `meegle view list` 确认视图，再用当前 public CLI 暴露的 `meegle view items` 读取 |
-| `view_multi_project` / `view_project_overview` / `view_user_gantt` | 跨空间/全域/甘特视图 | 同上 |
-| `view_chart` | 图表视图 | 当前 cli 不支持 chart 操作 — **拒绝** |
-| `view_workitem` | 通用工作项视图 | 若 `is_resource=true`，`work_item_type` 已脱包装可直接用 |
+| `view_story` / `view_issue` | 需求 / 缺陷视图 | 如果用户想操作"这个视图里的工作项"，先用 `workitem meta-types` 把 `work_item_type` 映射为真实 `type_key`，再用 `meegle view list` 确认视图。只有 `view_type=0/2` 才继续用 `meegle view items`；若 `view_type=1`，说明条件视图当前 CLI 不支持直接读取 items，并停止 |
+| `view_multi_project` / `view_project_overview` / `view_user_gantt` | 跨空间/全域/甘特视图 | 同上；必须先确认 `view_type`，不要把条件视图交给 `view items` |
+| `view_chart` | 图表视图 | 先 `url decode`，再用返回的 `simple_name` 和 `chart_id` 执行 `meegle chart get` |
+| `view_workitem` | 通用工作项视图 | `work_item_type` 仍是 `api_name`，必须先经 `workitem meta-types` 映射为真实 `type_key`，再用于 `view list` / `workitem get` 等命令 |
 
 ### 图表类
 
-当前 cli 不暴露 chart 操作。所有 `chart_*` 一律**拒绝**并告知用户用 web 端。
+当前 chart URL 的默认路径是：先 `url decode`，然后使用 decode 返回的 `simple_name` 与 `chart_id` 继续执行 `meegle chart get --project-key <simple_name> --chart-id <chart_id> --format json`。不要跳过 decode 猜参数，也不要自造 raw chart API。
+
+图表读取的 P0 收敛规则：
+
+- `chart get` 成功一次后，后续标题、维度、指标、top N、异常项都必须基于这次返回做本地整理
+- 不要为了不同指标排行、`jq` 输出格式、`output-select` 裁剪或二次确认返回 shape 再重复执行第二次 `chart get`
+- 如果第一次返回已足够回答，就直接回答；不要继续探测，避免触发 `qps limit`
 
 ### 空间/设置类（写操作请走 OpenAPI，非本 skill 范围）
 

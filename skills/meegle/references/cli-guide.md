@@ -20,6 +20,14 @@ meegle inspect comment.add --format json
 
 当历史示例与 inspect 不一致时，优先相信 inspect 输出。
 
+把 `inspect --format json` 看成 manifest-backed public command descriptor，而不是原始 tool schema。构造命令时，优先读取：
+
+- `parameters[].flag`：CLI 直接可用的 flag 名
+- `parameters[].name`：后端 canonical 参数名
+- `parameters[].type` / `required` / `envelope` / `items`
+- `runtime_source` / `snapshot_stale`
+- `deprecation.replacement`
+
 准备使用 `--select` 时，先看 `inspect --format json` 里的 projection metadata：
 
 - `projection.backend_select_supported`
@@ -29,6 +37,12 @@ meegle inspect comment.add --format json
 - `decision_guidance.projection_mode`
 - `decision_guidance.wrapper_path_hint`
 - `decision_guidance.dry_run_recommended`
+
+执行前额外判断：
+
+- `runtime_source == "live"`：允许正常执行
+- `runtime_source == "snapshot"`：只允许 `inspect` / `doctor` 等只读诊断；不要继续执行业务命令
+- `deprecation.replacement` 存在：优先改用 replacement
 
 ## Flag 语义层
 

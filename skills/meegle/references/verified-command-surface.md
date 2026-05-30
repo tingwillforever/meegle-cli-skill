@@ -36,7 +36,7 @@ Use this file to choose the default-safe command path.
 | `view delete` | ✅ 支持 | destructive；需要 `--confirm`，仅在用户明确要求删除视图时使用 |
 | `view create-condition` | ✅ 支持 | |
 | `view update-condition` | ✅ 支持 | |
-| `chart get` | ✅ 支持 | |
+| `chart get` | ✅ 支持 | 支持显式 `chart_id` 读取，也支持 chart URL decode 后路由 |
 | `chart list` | ❌ 暂不开放 | 当前私有化版本后端未提供稳定可用 API，先停用 public surface |
 | `workhour list-records` | ❌ 暂不开放 | 当前私有化版本空间内基本未开启实际工时，先停用 public surface |
 | `workhour list-schedule` | ❌ 不支持 | MCP 无对应工具 |
@@ -91,7 +91,7 @@ Prefer these by default:
 - `view update-condition`
 
 ### Chart
-- `chart get`
+- `chart get` — 用户给 `chart_id` 时可直接读取；用户给 `chart_detail` / `view_chart` URL 时，先 `url decode` 再路由到该命令
 
 ### Attachment
 - `attachment upload-file`
@@ -111,7 +111,7 @@ Prefer these by default:
 
 ### User
 - `user search`
-- `user query` — deprecated；仅用于已知 `user_key` / `email` / `out_id` 的精确解析，默认优先 `user search`
+- `user query` — 用于已知 `user_key` / `email` / `out_id` 的精确解析；姓名/关键词检索默认走 `user search`
 
 ### Private Extensions
 - `workitem abort`
@@ -154,21 +154,3 @@ Use `meegle inspect <resource>.<method>` first and check the caveat.
 | `chart list` | 当前私有化版本后端未提供稳定可用 API | 暂无稳定 public 替代；如需图表详情，仅在已知 `chart_id` 时使用 `chart get` |
 | `workhour list-records` | 当前私有化版本空间内基本未开启实际工时 | 暂无稳定 public 替代；需要工时能力时改走页面或等待空间启用 |
 | `mywork todo` | MCP 未提供 | 使用 `workitem search-by-params` / `workitem search-filter` 组合查询 |
-
-## Stable Default Flow
-
-Read path:
-- `space list` only when current scope is unknown or cross-space discovery is required
-- `workitem meta-types` to list available work item types
-- `workitem meta-create-fields` to get field metadata for creating work items
-- `workitem meta-fields` to get detailed field configuration
-- `workitem meta-roles` to get role configuration
-- `workitem get` for reading work item details
-- `workflow list-state-transitions` for workflow state inspection
-
-Write path:
-- `workitem create` for new work items
-- `workitem update` for field updates
-- `workflow transition` for node flow transitions
-- `workflow transition-state` for state flow transitions
-- `workflow update-node` for node metadata updates

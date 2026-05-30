@@ -66,7 +66,7 @@ meegle attachment download \
 
 ## attachment delete
 
-按 UUID 从工作项附件中删除文件。此命令有副作用，使用前应确认目标工作项、字段和待删 UUID 列表。
+按 UUID 从工作项附件中删除文件。**destructive 命令，必须带 `--confirm` 才能执行**；使用前应确认目标工作项、字段和待删 UUID 列表。
 
 ```bash
 meegle attachment delete \
@@ -75,7 +75,8 @@ meegle attachment delete \
   --field-key field_xxx \
   --uuids uuid-a \
   --uuids uuid-b \
+  --confirm \
   --format json
 ```
 
-上传/下载属于低频路径；`delete` 属于 conditional 命令，只在用户明确要求删除附件时使用。
+上传/下载属于低频路径；`delete` 属于 destructive 命令，只在用户明确要求删除附件时使用，并提示删除不可恢复。

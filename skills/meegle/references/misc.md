@@ -6,7 +6,7 @@
 |---|---|---|
 | `team list` | 不支持 | MCP 无对应工具 |
 | `team list-members` | `team list-members` | ✅ 已对齐 |
-| `chart get` | `chart get` | ✅ 已对齐 |
+| `chart get` | `chart get` | ✅ 已对齐；既可显式 `chart_id` 直达读取，也可作为 `chart_detail` / `view_chart` URL decode 后的默认路由 |
 | `chart list` | 暂不开放 | 当前私有化版本后端未提供稳定可用 API，先停用 public surface |
 | `relation list` / `relation meta-definitions` | 不支持 | relation 域与 upstream/MCP 语义不一致，当前 public CLI 暂不开放 |
 | `workhour list-records` | 暂不开放 | 当前私有化版本空间内基本未开启实际工时，先停用 public surface |
@@ -36,7 +36,7 @@ meegle team list-members \
 创建子任务时，若用户**显式指定负责人**，按用户给出的标识设置 `--assignee`：
 
 - 已知 `user_key`：直接传 `subtask create --assignee '["USER_KEY"]'`
-- 已知 `email` / `out_id`：若需精确解析，可临时用 `meegle user query` 取 `user_key`；默认的人名检索仍走 `user search`，兼容状态以 [verified-command-surface.md](verified-command-surface.md) 为准
+- 已知 `email` / `out_id`：若需精确解析，可直接用 `meegle user query` 取 `user_key`；默认的人名检索仍走 `user search`，公开定位以 [verified-command-surface.md](verified-command-surface.md) 为准
 - 已知中文名/关键词：先用 `meegle user search --query "姓名" --project-key PROJ --format json` 解析到 `user_key`；若同名冲突，展示候选 `email` / `user_key` 让用户确认
 
 若用户**未指定负责人**，默认省略 `--assignee`，保留节点/后端默认负责人逻辑；不要额外猜测用户，也不要把“未指定负责人”误改写成必须显式传某个 `user_key`。角色负责人改走 `--role-assignee`。
