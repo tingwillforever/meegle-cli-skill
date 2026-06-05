@@ -12,6 +12,16 @@
 
 ---
 
+## 写操作建模
+
+流转前先明确：
+
+- 目标对象：`project_key`、`work_item_type_key`、`work_item_id`、当前状态。
+- 目标状态：目标状态名、`transition_id`、必填字段。
+- 变更意图：推进、关闭、解决、重开或其他状态变更。
+- 风险等级：状态流转是 conditional 写操作；通过 `inspect` 或 verified command surface 确认命令面，必要时保留必填项检查和用户确认。
+- 结果核验：流转后回读状态，展示原状态、新状态、补充字段和执行结果。
+
 ## 执行流程
 
 ### STEP 1 — 定位工作项
@@ -32,7 +42,7 @@
 meegle workitem get \
   --project-key PROJ \
   --work-item-type-key TYPE_KEY \
-  --work-item-ids 12345 \
+  --work-item-ids '[12345]' \
   --format json
 ```
 

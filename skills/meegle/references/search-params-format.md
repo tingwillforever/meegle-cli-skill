@@ -5,7 +5,7 @@
 > 本文覆盖 `workitem search-by-params` 的 `--search-group` 入参构造规范。
 > 字段写入（`workitem create` / `workitem update`）的 `field_value` shape 见 [field-value-format.md](field-value-format.md)。
 
-`workitem search-by-params` 支持 backend projection。需要限制后端返回字段时，默认使用 `--select id,name,...`；`--fields` 仅作为 API-native compatibility input，不要与 `--select` 同时使用。只想裁剪本地展示时，用 `--output-select`。
+`workitem search-by-params` 支持 backend projection。需要限制后端返回字段时，默认使用 CLI 产品化 projection alias `--select id,name,...`；live `inspect.parameters[]` 可能显示底层 API-native 参数 `fields`，但普通 skill 路径不要改用 `--fields`。`--fields` 仅作为兼容/排障输入，不要与 `--select` 同时使用。只想裁剪本地展示时，用 `--output-select`。
 
 ---
 
@@ -133,7 +133,7 @@ Python 换算：`int(datetime(..., tzinfo=tz).timestamp() * 1000)`
 | `user` | `=` `!=` `HAS ANY OF` `HAS NONE OF` `IS NULL` `IS NOT NULL` | `list<string>` | user_key 列表 |
 | `multi-user` | `=` `!=` `HAS ANY OF` `HAS NONE OF` `IS NULL` `IS NOT NULL` `CONTAINS` `NOT CONTAINS` | `list<string>` | user_key 列表 |
 | `multi-text` | `~` `!~` `IS NULL` `IS NOT NULL` | string | 无格式匹配 |
-| `workitem_related_select` | `=` `!=` `HAS ANY OF` `HAS NONE OF` `IS NULL` `IS NOT NULL` | `list<int64>` | 关联工作项 ID 列表（**数字**，不是字符串） |
+| `workitem_related_select` | `=` `!=` `HAS ANY OF` `HAS NONE OF` `IS NULL` `IS NOT NULL` | `list<int64>` | 关联工作项 ID 列表（**数字数组**，不是字符串，也不是单个标量） |
 | `workitem_related_multi_select` | `=` `!=` `HAS ANY OF` `HAS NONE OF` `IS NULL` `IS NOT NULL` `CONTAINS` `NOT CONTAINS` | `list<int64>` | 同上 |
 | `date` | `<` `>` `<=` `>=` `IS NULL` `IS NOT NULL` | int64 | 毫秒时间戳，区间拆两条 |
 | `precise_date` | `<` `>` `<=` `>=` `IS NULL` `IS NOT NULL` | int64 | 同上 |
@@ -153,7 +153,9 @@ Python 换算：`int(datetime(..., tzinfo=tz).timestamp() * 1000)`
 meegle workitem meta-fields \
   --project-key PROJ \
   --work-item-type-key TYPE_KEY \
-  --format json | jq '[.data[] | select(.field_type_key=="workitem_related_select" or .field_type_key=="work_item_related_select") | {field_key, field_name, field_type_key}]'
+  --output-select field_key,field_name,field_type_key \
+  --format json
+# 从返回 JSON 的 data[] 中筛选 field_type_key 属于 workitem_related_select / work_item_related_select 的字段。
 
 # Step 2：查被关联工作项的 ID
 # - 基础名称匹配、内置维度过滤：用 search-filter
@@ -162,19 +164,23 @@ meegle workitem search-filter \
   --project-key PROJ \
   --work-item-type-keys '["TARGET_TYPE_KEY"]' \
   --work-item-name "目标名称" \
-  --format json | jq '[.data[] | {id, name}]'
+  --format json
+# 从返回 JSON 的 data[] 中读取 id 和 name。
 
 # search-by-params 示例
 meegle workitem search-by-params \
   --project-key PROJ \
   --work-item-type-key TARGET_TYPE_KEY \
   --search-group '{"conjunction":"AND","search_params":[{"param_key":"people","operator":"HAS ANY OF","value":["USER_KEY"]}],"search_groups":[]}' \
-  --format json | jq '[.data[] | {id, name}]'
+  --format json
+# 从返回 JSON 的 data[] 中读取 id 和 name。
 
 # Step 3：构造过滤条件（value 是数字数组）
 # {"param_key": "field_key", "operator": "HAS ANY OF", "value": [19582870]}
 #                                                                 ↑ 数字，不加引号
 ```
+
+关联字段默认使用 `operator: "HAS ANY OF"` + `value: [ID]`。不要写成 `"operator":"=","value":19582870`；即使 operator 是 `=`，该字段族的 value shape 仍是 `list<int64>`，标量会触发 `param type must be []int64`。
 
 ---
 

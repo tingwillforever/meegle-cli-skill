@@ -50,7 +50,7 @@ meegle url decode --url '<URL>' --format json
 meegle workitem meta-types --project-key <simple_name> --format json
 # → 从 data[] 中找 api_name == work_item_type 的那条，取其 type_key
 
-# 步骤 2：获取工作项（注意：--work-item-ids 是复数，值为 JSON 数组字符串）
+# 步骤 2：获取工作项（注意：--work-item-ids 是复数，值为 JSON 数字数组字符串）
 meegle workitem get \
   --project-key <simple_name> \
   --work-item-type-key <type_key> \
@@ -61,6 +61,7 @@ meegle workitem get \
 **常见错误：**
 - `--work-item-id`（单数）→ 不存在，必须用 `--work-item-ids`
 - `--work-item-ids 20426988`（裸数字）→ 必须用 `'[20426988]'`（JSON 数组字符串）
+- `--work-item-ids '["20426988"]'`（字符串数组）→ `work_item_ids` 元素类型是 number，必须用 `'[20426988]'`
 - `--work-item-type-key story_new`（api_name）→ 必须先 meta-types 拿 UUID
 ### 视图类（有 `view_id` 但无 `work_item_id`）
 

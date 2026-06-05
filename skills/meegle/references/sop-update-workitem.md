@@ -11,6 +11,16 @@
 
 ---
 
+## 写操作建模
+
+更新前先明确：
+
+- 目标对象：`project_key`、`work_item_type_key`、`work_item_id`。
+- 目标字段：字段 key、字段类型、旧值读取需求、目标值。
+- 变更意图：覆盖、追加、清空、修正，避免把追加误做覆盖。
+- 风险等级：通过 `inspect` 或 verified command surface 确认命令面；复杂字段必要时保留写前读取和写后核验，不受读路径成本预算限制。
+- 结果核验：更新成功后回读目标工作项，展示对象 ID、名称、变更字段和执行结果。
+
 ## 执行流程
 
 ### STEP 1 — 定位工作项并提取修改意图
@@ -30,7 +40,7 @@
 meegle workitem get \
   --project-key PROJ \
   --work-item-type-key TYPE_KEY \
-  --work-item-ids 12345 \
+  --work-item-ids '[12345]' \
   --format json
 ```
 
@@ -109,7 +119,7 @@ meegle workitem update \
 meegle workitem get \
   --project-key PROJ \
   --work-item-type-key TYPE_KEY \
-  --work-item-ids 12345 \
+  --work-item-ids '[12345]' \
   --format json
 ```
 

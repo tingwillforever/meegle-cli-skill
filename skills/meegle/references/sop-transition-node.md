@@ -12,6 +12,16 @@
 
 ---
 
+## 写操作建模
+
+流转前先明确：
+
+- 目标对象：`project_key`、`work_item_type_key`、`work_item_id`、当前节点。
+- 目标状态 / 节点：目标节点、`node_id`、动作 `confirm` / `rollback`。
+- 变更意图：推进、回滚、补充节点字段或角色。
+- 风险等级：流转是 conditional 写操作；通过 `inspect` 或 verified command surface 确认命令面，必要时保留必填项检查和用户确认。
+- 结果核验：流转后回读 workflow 状态，展示原节点、目标节点、补充字段和执行结果。
+
 ## 核心设计原则：最小查询 + 按需补充
 
 `workflow transition` 只接受 `node_id`（节点 key），不支持节点名称。必须先通过 `workflow list-state-transitions` 获取名称→node_id 映射。但查询应尽可能精准轻量：
@@ -41,7 +51,7 @@
 meegle workitem get \
   --project-key PROJ \
   --work-item-type-key TYPE_KEY \
-  --work-item-ids 12345 \
+  --work-item-ids '[12345]' \
   --format json
 ```
 

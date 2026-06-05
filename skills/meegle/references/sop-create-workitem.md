@@ -11,6 +11,16 @@
 
 ---
 
+## 写操作建模
+
+创建前先明确：
+
+- 目标对象：空间、工作项类型、标题、模板。
+- 目标字段：必填字段、用户明确要求的可选字段、字段值来源。
+- 变更意图：为什么创建、是否临时验证、是否需要后续清理。
+- 风险等级：通过 `inspect` 或 verified command surface 确认命令面；创建是真实写入，不套用读路径“最终查询一次”预算。
+- 结果核验：创建成功后用 `workitem get` 回读 ID、名称和关键字段。
+
 ## 执行流程
 
 ### STEP 1 — 提取意图
@@ -131,7 +141,7 @@ meegle workitem create \
 meegle workitem get \
   --project-key PROJ \
   --work-item-type-key TYPE_KEY \
-  --work-item-ids <新ID> \
+  --work-item-ids '[新ID]' \
   --format json
 ```
 

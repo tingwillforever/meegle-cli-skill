@@ -73,8 +73,10 @@ meegle workflow list-state-transitions \
   --project-key PROJ \
   --work-item-type-key TYPE_KEY \
   --work-item-id 12345 \
-  --format json | jq '.data.workflow_nodes[] | select(.id=="node_dev") | .fields'
+  --format json
 ```
+
+从返回 JSON 的 `data.workflow_nodes[]` 中找到目标 `id`，再读取该节点的 `fields`。
 
 ---
 
@@ -88,7 +90,8 @@ meegle workflow list-state-transitions \
   --project-key PROJ \
   --work-item-type-key TYPE_KEY \
   --work-item-id 12345 \
-  --format json | jq '.data.workflow_nodes[] | {id, name, status, owners}'
+  --format json
+# 从返回 JSON 的 data.workflow_nodes[] 中读取 id、name、status 和 owners。
 
 # 2. 检查必填项
 meegle workflow list-state-required \
@@ -116,7 +119,8 @@ meegle workflow list-state-transitions \
   --project-key PROJ \
   --work-item-type-key TYPE_KEY \
   --work-item-id 12345 \
-  --format json | jq '.data.connections[]'
+  --format json
+# 从返回 JSON 的 data.connections[] 中读取可用 transitions。
 
 # 2. 拿到目标 state_key 后，检查必填
 meegle workflow list-state-required \

@@ -73,8 +73,7 @@ meegle attachment delete \
   --project-key PROJ \
   --work-item-id 12345 \
   --field-key field_xxx \
-  --uuids uuid-a \
-  --uuids uuid-b \
+  --uuids '["uuid-a","uuid-b"]' \
   --confirm \
   --format json
 ```

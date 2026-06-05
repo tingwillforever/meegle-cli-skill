@@ -6,6 +6,16 @@
 
 ---
 
+## 写操作建模
+
+发布/部署任务前先明确：
+
+- 目标对象：`project_key`、发布计划 `release_id`、目标 app、目标 deploy task。
+- 目标状态 / 动作：prepare、create、execute、verify、apply-white-list。
+- 变更意图：查看、创建、执行、验证或恢复部署任务。
+- 风险等级：create/execute/verify/apply-white-list 是 conditional 写操作；必须确认发布上下文、目标记录和预期副作用，不能套用工作项读路径成本预算省略安全门禁。
+- 结果核验：写操作后用 list/inspect/verify 读取部署状态，展示任务 ID、部署状态、关键失败原因和后续动作。
+
 ## 适用场景
 
 当用户要求对发布工作项（release work item）下的部署任务进行以下操作时使用本 SOP：
@@ -90,7 +100,7 @@ meegle release deploy-task-prepare \
 meegle release deploy-task-create \
   --project-key PROJ \
   --release-id RELEASE_ID \
-  --trigger '{"iBuildAppId":"APP_ID","feishuProjectID":"PROJ_ID","feishuOrderID":"RELEASE_ID","chartFullName":"REPO/CHART-1.2.3.tgz","builder":"USER_KEY","upgradeSummary":"Prepared from release RELEASE_ID","qualityAssurance":"USER_KEY"}' \
+  --trigger '[{"iBuildAppId":"APP_ID","feishuProjectID":"PROJ_ID","feishuOrderID":"RELEASE_ID","chartFullName":"REPO/CHART-1.2.3.tgz","builder":"USER_KEY","upgradeSummary":"Prepared from release RELEASE_ID","qualityAssurance":"USER_KEY"}]' \
   --format json
 ```
 
@@ -102,8 +112,7 @@ meegle release deploy-task-create \
 meegle release deploy-task-execute \
   --project-key PROJ \
   --release-id RELEASE_ID \
-  --recordIDs RECORD_ID_1 \
-  --recordIDs RECORD_ID_2 \
+  --recordIDs '["RECORD_ID_1","RECORD_ID_2"]' \
   --format json
 ```
 
@@ -129,7 +138,7 @@ agent **应该**根据响应中的 `deploy_status` 分支，然后再继续 `dep
 meegle release deploy-task-apply-white-list \
   --project-key PROJ \
   --release-id RELEASE_ID \
-  --recordIDs RECORD_ID_1 \
+  --recordIDs '["RECORD_ID_1"]' \
   --format json
 ```
 
@@ -141,7 +150,7 @@ meegle release deploy-task-apply-white-list \
 meegle release deploy-task-verify \
   --project-key PROJ \
   --release-id RELEASE_ID \
-  --validation '{"recordID":"RECORD_ID_1","validation":10}' \
+  --validation '[{"recordID":"RECORD_ID_1","validation":10}]' \
   --format json
 ```
 
@@ -212,7 +221,7 @@ meegle release deploy-task-prepare \
 meegle release deploy-task-create \
   --project-key PROJ \
   --release-id RELEASE_ID_ACTIVE \
-  --trigger '{"iBuildAppId":"APP_ID","feishuProjectID":"PROJ_ID","feishuOrderID":"RELEASE_ID_ACTIVE","chartFullName":"REPO/CHART-1.2.3.tgz","builder":"USER_KEY","upgradeSummary":"Prepared from release RELEASE_ID_ACTIVE","qualityAssurance":"USER_KEY"}' \
+  --trigger '[{"iBuildAppId":"APP_ID","feishuProjectID":"PROJ_ID","feishuOrderID":"RELEASE_ID_ACTIVE","chartFullName":"REPO/CHART-1.2.3.tgz","builder":"USER_KEY","upgradeSummary":"Prepared from release RELEASE_ID_ACTIVE","qualityAssurance":"USER_KEY"}]' \
   --format json
 ```
 
@@ -228,7 +237,7 @@ meegle release deploy-task-create \
 meegle release deploy-task-create \
   --project-key PROJ \
   --release-id RELEASE_ID_DONE \
-  --trigger '{"iBuildAppId":"APP_ID","feishuProjectID":"PROJ_ID","feishuOrderID":"RELEASE_ID_DONE","chartFullName":"REPO/CHART-1.2.3.tgz","builder":"USER_KEY","upgradeSummary":"Prepared from release RELEASE_ID_DONE","qualityAssurance":"USER_KEY"}' \
+  --trigger '[{"iBuildAppId":"APP_ID","feishuProjectID":"PROJ_ID","feishuOrderID":"RELEASE_ID_DONE","chartFullName":"REPO/CHART-1.2.3.tgz","builder":"USER_KEY","upgradeSummary":"Prepared from release RELEASE_ID_DONE","qualityAssurance":"USER_KEY"}]' \
   --format json
 ```
 

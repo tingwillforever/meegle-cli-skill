@@ -52,6 +52,8 @@ meegle workitem update \
 
 `--work-item-type-keys` 是复数，值为 JSON 数组字符串。
 
+按名称搜索时必须使用 `--work-item-name`。`search-filter` 不支持 `--name`；`--name` 只用于创建类标题输入等其他命令。
+
 ⚠️ `--created-at` / `--updated-at` 的 `start` / `end` 必须是**毫秒整数**（number 类型），不能是 ISO 字符串：
 ```bash
 # 正确
@@ -69,6 +71,14 @@ Python 换算：`int(datetime(..., tzinfo=tz).timestamp() * 1000)`
 meegle workitem search-filter \
   --project-key PROJ \
   --work-item-type-keys '["TYPE_KEY"]' \
+  --page-size 10 \
+  --format json
+
+# 名称搜索
+meegle workitem search-filter \
+  --project-key PROJ \
+  --work-item-type-keys '["TYPE_KEY"]' \
+  --work-item-name "目标名称" \
   --page-size 10 \
   --format json
 
@@ -98,7 +108,7 @@ meegle workitem search-filter \
 
 ⚠️ 关联字段（`work_item_related_select`）的 value 是**数字 ID**（number 类型），不是字符串。ID 需先查对应工作项类型获取，见 [search-params-format.md](search-params-format.md) 的「关联字段 ID 查找 SOP」。
 
-`search-by-params` 支持 backend projection。默认用 `--select id,name,...` 限制后端返回字段；`--fields` 仅作为 API-native compatibility input，不能与 `--select` 同时使用。
+`search-by-params` 支持 backend projection。默认用 CLI 产品化 alias `--select id,name,...` 限制后端返回字段；底层 live 参数可能显示为 `fields`，但 `--fields` 仅作为 API-native compatibility input，不能与 `--select` 同时使用。
 
 ```bash
 # 时间范围 + 业务线 + 自定义关联字段（所属项目）+ 排除已完成状态
@@ -121,7 +131,17 @@ meegle workitem search-by-params \
   --format json
 ```
 
-字段 key 查找：`workitem meta-fields --project-key PROJ --work-item-type-key TYPE_KEY --format json | jq '[.data[] | {field_key, field_name, field_type_key}]'`
+字段 key 查找：
+
+```bash
+meegle workitem meta-fields \
+  --project-key PROJ \
+  --work-item-type-key TYPE_KEY \
+  --output-select field_key,field_name,field_type_key \
+  --format json
+```
+
+从返回 JSON 的 `data[]` 中读取 `field_key`、`field_name` 和 `field_type_key`。
 
 ## view items
 
@@ -129,12 +149,11 @@ meegle workitem search-by-params \
 meegle view items \
   --project-key PROJ \
   --view-id VIEW_ID \
-  --page-size 20 \
   --output-select data.name,data.view_id,data.work_item_id_list \
   --format json
 ```
 
-`view items` 不支持 backend projection。传 `--select` 会直接失败；若只是想减少本地展示字段，使用 `--output-select data.xxx`。
+`view items` 当前 live 参数只有 `--project-key` 和 `--view-id`。不要传 `--page-size`；它会报 `unknown flag: --page-size`。`view items` 不支持 backend projection。传 `--select` 会直接失败；若只是想减少本地展示字段，使用 `--output-select data.xxx`。
 
 若要展示视图中的工作项标题，继续使用 `work_item_id_list` 调 `workitem get`。一次最多传 50 个 ID；超过 50 个时先取前 50 个做核验，或每 50 个一批查询：
 
@@ -246,8 +265,7 @@ meegle release deploy-task-list \
 meegle release deploy-task-execute \
   --project-key PROJ \
   --release-id RELEASE_ID \
-  --recordIDs RECORD_ID_1 \
-  --recordIDs RECORD_ID_2 \
+  --recordIDs '["RECORD_ID_1","RECORD_ID_2"]' \
   --format json
 ```
 

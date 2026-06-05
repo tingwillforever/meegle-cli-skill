@@ -55,6 +55,44 @@ meegle inspect comment.add --format json
 | Output display | `--format`、`--envelope`、`--verbose`、`--output-select` | 否 | 控制本地输出形状或诊断信息，不替代后端过滤 |
 | Compat / lower-level | `--fields` 等 API-native 参数 | 是 | 仅在命令特定兼容场景使用，不作为默认产品化 UX |
 
+### 命令专属 flag 消歧
+
+不要把一个命令的合法 flag 泛化到另一个命令。构造命令前优先按 `inspect <resource>.<method> --format json` 的 `parameters[].flag` 校验；已知高混淆点如下：
+
+| 场景 | 正确命令 / flag | 禁止串用 | 原因 |
+|---|---|---|---|
+| 按名称搜索工作项 | `workitem search-filter --work-item-name "名称"` | `workitem search-filter --name`、`workitem search-filter --keyword` | `--name` 是 `workitem create` 的标题输入，`--keyword` 不是 search-filter 参数 |
+| `search-filter` 类型范围 | `--work-item-type-keys '["TYPE_KEY"]'` | `--work-item-type-key TYPE_KEY` | `search-filter` 接收复数数组 |
+| `search-by-params` 类型范围 | `--work-item-type-key TYPE_KEY` | `--work-item-type-keys '[...]'` | `search-by-params` 接收单个类型 |
+| `workitem get` 读取 ID | `--work-item-ids '[123]'` | `--work-item-id 123`、`--work-item-ids '["123"]'` | `get` 是批量读取接口，接收 number 数组 |
+| `workitem update` 写入 ID | `--work-item-id 123` | `--work-item-ids '[123]'` | `update` 是单对象写入 |
+| 固定 / 条件视图列表 | `view list --work-item-type-key TYPE_KEY --page-size N` | `--work-item-type-keys` | `view list` 按单类型列视图 |
+| 读取固定视图 items | `view items --project-key PROJ --view-id VIEW_ID` | `--page-size`、`--select` | `view items` 当前 live 请求参数只有 `project-key` / `view-id`；展示裁剪用 `--output-select data.xxx` |
+| 后端字段 projection | `workitem get/search-by-params --select id,name,...` | 在 `search-filter` / `view items` 上用 `--select` | 只有 `projection.backend_select_supported == true` 的命令支持 |
+| `search-by-params` 默认展示字段 | `--select id,name,work_item_status,current_status_operator,created_at` | `--fields '["id",...]'` | 普通展示走产品化 `--select`，不要因 live 底层参数名是 `fields` 回退到 `--fields`；`current_status_operator` 仍按 `fields[]` 业务字段读取 |
+| 本地展示裁剪 | `--output-select ...`，object-wrapper 用 `data.xxx` | 把 `--output-select` 当过滤条件 | `--output-select` 不进入后端请求 |
+| 查询 / 展示字段元数据 | `workitem meta-fields` | `meta-create-fields` | `meta-fields` 是查询、过滤、状态/枚举 label 映射来源 |
+| 创建 / 写入字段 shape | `workitem meta-create-fields` | `meta-fields` | `meta-create-fields` 承载创建页必填、模板和写入 shape |
+| 类型入参取值 | `meta-types` 返回的 UUID `type_key` | `api_name`、URL path、中文名直接当 `--work-item-type-key(s)` | CLI 业务命令需要 UUID type key |
+
+如果发现自己想用上表“禁止串用”列里的 flag，不要先 probe；先改回正确 flag。只有表中没有覆盖、且参数 shape 确实不确定时，才用 `inspect` 诊断。
+
+### Array flag value shape
+
+`inspect.parameters[].type == "array"` 的 flag 示例必须写成 JSON array string，不要裸传单值，也不要用重复 flag 代替数组。常见格式：
+
+```bash
+--work-item-type-keys '["TYPE_KEY"]'
+--work-item-ids '[12345]'
+--user-keys '["USER_KEY"]'
+--recordIDs '["RECORD_ID_1","RECORD_ID_2"]'
+--trigger '[{"iBuildAppId":"APP_ID","chartFullName":"REPO/CHART.tgz"}]'
+```
+
+数组元素类型以 `inspect.parameters[].items.type` 为准。`workitem get` 的 `work_item_ids` 是 `number[]`，必须传 `--work-item-ids '[12345]'`；不要传 `--work-item-ids '["12345"]'`。
+
+相反，单值 flag 不要写成数组，例如 `--work-item-type-key TYPE_KEY`、`--work-item-id 12345`。
+
 ### Structured request input
 
 `--params/-P` 与 `--set` 用于补充 request input：
@@ -136,7 +174,7 @@ meegle workitem search-filter \
 - 目标是本地展示裁剪：改用 `--output-select`。
 - 目标是减少后端字段：改用 `workitem get` / `workitem search-by-params` 等支持 backend projection 的命令，或移除 projection 诉求。
 
-说明：当前 backend projection 在 `workitem get` / `workitem search-by-params` 上主要会收敛 `fields[]` 自定义字段集合；固定顶层字段仍可能按接口契约返回。
+说明：当前 backend projection 在 `workitem get` / `workitem search-by-params` 上主要会收敛 `fields[]` 业务字段集合；工作项稳定顶层 allowlist 仍可能按接口契约返回。`--select` 是返回字段声明，不是 JSON 顶层路径声明；例如 `current_status_operator` 可以放进 `--select`，但读取时仍从 `fields[]` 找同名 `field_key` / `field_alias`。
 
 `--output-select` 的路径需要匹配真实响应形状：
 
@@ -146,7 +184,7 @@ meegle workitem search-filter \
 
 ### `--fields` 兼容边界
 
-`--fields` 是 API-native compatibility input，不是默认 projection UX。
+`--fields` 是 API-native compatibility input，不是默认 projection UX。`workitem search-by-params` 的 live `inspect.parameters[]` 可能显示底层参数 `fields`，但当 `projection.backend_select_supported == true` 时，Skill 默认使用 CLI 产品化 alias `--select`；CLI 会把它映射到后端 `data.fields`。
 
 - 命令支持 backend projection 时，优先使用 `--select`。
 - 只有当用户明确需要底层 API-native `fields` 参数，或排障需要直连底层参数时，才使用 `--fields`。

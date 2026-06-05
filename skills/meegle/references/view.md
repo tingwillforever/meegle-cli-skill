@@ -11,10 +11,12 @@
 
 视图 URL 路由先看 [url-kinds.md](url-kinds.md)。不要从 URL path 推断视图类型；必须先用 `view list` 读取 `view_type`。
 
+URL decode 返回的 `work_item_type` 是 `api_name`，不是 `view list` 可用的 `work_item_type_key`。执行任何 `view list` 前，必须先用同空间的 `workitem meta-types` 把 `api_name` 映射为 UUID `type_key`；不要把 `story_new`、`bug_new`、`issue` 等 api_name 作为 `--work-item-type-key` 试探。
+
 关键分流：
 
 - `view_type=0` 或 `view_type=2`：可继续用 `view items` 读取视图包装信息和 `work_item_id_list`
-- `view_type=1`：这是条件视图；当前 public CLI 不暴露条件视图 item reader / panoramic-items，确认后立即停止读取路径，向用户说明限制，不要再尝试 `view items`
+- `view_type=1`：这是条件视图；先用 `inspect` / verified command surface 确认当前 public CLI 是否暴露条件视图 item reader。未确认前不要从 URL、视图名或历史经验猜实例集合；若当前命令面未暴露读取能力，停止读取路径并说明限制。
 
 ---
 
@@ -34,6 +36,16 @@ meegle view list \
 `view_type` 只用于选择后续路径，不要仅凭 URL 中的 `storyView` / `multiProjectView` 判断。
 如果结果较多，优先显式传 `--page-num`、`--page-size`，避免默认返回过大结果集。
 
+固定视图 URL 的最小只读序列：
+
+1. `url decode`
+2. `workitem meta-types` 映射 `api_name -> type_key`
+3. `view list` 用真实 UUID `type_key` 确认目标 `view_id` 和 `view_type`
+4. `view items` 读取 `data.name`、`data.view_id`、`data.work_item_id_list`
+5. 如用户要标题或详情，对 `work_item_id_list` 执行一次 `workitem get`
+
+不要在第 3 步之前用 URL 中的 api_name 试跑 `view list`。第 5 步是该业务目标的最终工作项查询：执行前先决定是否需要 `--output-select id,name`；一旦 `workitem get` 成功返回足以回答的数据，不要为了裁剪字段或生成表格再重跑同一批 ID。
+
 ## view items
 
 读取固定视图或系统列表视图下的工作项。通常用于 `view_type=0` 或 `view_type=2`。
@@ -42,17 +54,15 @@ meegle view list \
 meegle view items \
   --project-key PROJ \
   --view-id VIEW_ID \
-  --page-size 50 \
   --format json
 ```
 
-`view items` 当前不声明 backend projection。传 `--select` 会直接报错。只想减少本地展示字段时，用 `--output-select`，并按 object-wrapper 路径书写：
+`view items` 当前 live 参数只有 `--project-key` 和 `--view-id`。不要传 `--page-size`；它会报 `unknown flag: --page-size`。`view items` 当前不声明 backend projection。传 `--select` 会直接报错。只想减少本地展示字段时，用 `--output-select`，并按 object-wrapper 路径书写：
 
 ```bash
 meegle view items \
   --project-key PROJ \
   --view-id VIEW_ID \
-  --page-size 20 \
   --output-select data.name,data.view_id,data.work_item_id_list \
   --format json
 ```
@@ -102,9 +112,9 @@ meegle inspect view.items --format json
 - `projection.local_path_hint == "data.<field>"`
 - `decision_guidance.wrapper_path_hint == "data.<field>"`
 
-当前 public CLI 不暴露 `view panoramic-items`。如果后续确认需要条件视图读取能力，应单独评审后再开放。
+条件视图读取是 capability-gated 路径。如果后续 public CLI 暴露 `view panoramic-items` 或等价 item reader，应单独评审命令契约后再纳入默认路径。
 
-对于 `view_type=1`，不要把 `view items` 当作自愈 fallback。`view items` 只适用于固定视图或系统列表视图；条件视图应 fail-fast，报告“当前 CLI 不支持直接读取条件视图 items”。
+对于 `view_type=1`，不要把 `view items` 当作自愈 fallback。`view items` 只适用于固定视图或系统列表视图；条件视图只能在 public CLI contract 已验证时继续，否则 fail-fast。
 
 ## 条件与删除类视图操作
 

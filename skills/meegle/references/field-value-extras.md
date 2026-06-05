@@ -7,7 +7,7 @@
    ```bash
    meegle workitem search-filter \
      --project-key PROJ \
-     --work-item-type-keys TYPE_KEY \
+     --work-item-type-keys '["TYPE_KEY"]' \
      --work-item-name "用户给的名称" \
      --page-size 10 \
      --format json
