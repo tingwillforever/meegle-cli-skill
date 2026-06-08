@@ -167,6 +167,17 @@ meegle workitem search-filter \
   --format json
 ```
 
+如果该列表响应还需要进一步缩小分页元字段，只保留需要的 `pagination` 子字段：
+
+```bash
+meegle workitem search-filter \
+  --project-key PROJ \
+  --work-item-type-keys '["TYPE_KEY"]' \
+  --page-size 20 \
+  --output-select data.id,data.name,data.work_item_status,data.created_at,pagination.total,pagination.page_num,pagination.page_size \
+  --format json
+```
+
 如果在非 projection-capable 命令上使用 `--select`：
 
 - CLI 会直接返回错误，不再做本地裁剪 fallback。
@@ -178,7 +189,7 @@ meegle workitem search-filter \
 
 `--output-select` 的路径需要匹配真实响应形状：
 
-- 列表响应或 `{data:[...]}` wrapper：通常可以直接写 `id,name,work_item_status`，CLI 会自动投影到数组元素。
+- 列表响应或 `{data:[...]}` wrapper：通常可以直接写 `id,name,work_item_status`，CLI 会自动投影到数组元素，并默认保留同级 `pagination`。只有想显式约束分页元字段时，才改写成 `data.<field>` 与 `pagination.xxx`。
 - object-wrapper 响应：需要显式写 wrapper 路径，例如 `view items` 用 `--output-select data.name,data.view_id,data.work_item_id_list`。
 - 对已知 object-wrapper 命令，如果误写成 bare key，CLI 会返回 wrapper-aware remediation，并提示你用 `inspect` 确认 `data.xxx` 路径。
 

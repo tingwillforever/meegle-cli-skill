@@ -87,7 +87,7 @@ meegle inspect <resource>.<method> --format json
 
 - 先判断 flag 语义层：request input 会进入后端请求；execution control 控制执行；output display 只影响本地展示；compat / lower-level 仅在命令特定兼容场景使用。
 - `--select` 是后端字段 projection；只有 `inspect --format json` 声明 `projection.backend_select_supported == true` 时才用。
-- `--output-select` 只裁剪本地展示，不减少后端返回、不改变过滤条件。
+- `--output-select` 只裁剪本地展示，不减少后端返回、不改变过滤条件。对 paginated workitem list，CLI 默认保留后端返回的 `pagination.total/page_num/page_size`；只有想进一步缩小分页元字段时，才显式写 `pagination.xxx`。若当前输出里没有 `pagination`，先确认该响应原本是否就不带分页元信息，或是否还在使用旧版本产物。
 - 涉及写操作、复杂嵌套对象、时间范围或明确排障场景时，先用 `--dry-run` 确认 normalized request。普通只读查询默认不要先加 `--dry-run`，避免把一次查询变成两次业务命令。
 - destructive 命令（`comment remove`、`attachment delete`、`view delete`）必须带 `--confirm` 才能执行；conditional 命令会输出 stderr warning 但不阻断；`risk_tier` 通过 `inspect --format json` 查看。
 - CLI 语义层、命令专属 flag 消歧、projection、dry-run、`--fields` 兼容边界的完整规则见 [references/cli-guide.md](references/cli-guide.md)。不要把一个命令的相似 flag 套到另一个命令上。
@@ -107,7 +107,7 @@ meegle inspect <resource>.<method> --format json
 - 不确定命令参数、projection 或 dry-run 能力：先 `meegle inspect <resource>.<method> --format json`。但已由本 skill/reference 固化的工作项默认读路径（`meta-types`、`meta-fields`、`search-by-params`、`search-filter`、`workitem get`）不要为了普通展示再 `inspect`。
 - 工作项查询、当前用户相关语义、状态映射、只读预算规则统一看 [references/workitem.md](references/workitem.md)；主文不重复维护 case 级细则。
 - 图表 URL / `chart get` 场景遵循“一次 live 读取，后续只做本地整理”的读路径：`url decode -> chart get` 成功一次后，必须基于该次返回在本地提取标题、维度、指标、排行或摘要；不要为了不同排序口径、`jq` 格式化或字段裁剪重复执行第二次 `chart get`。
-- 工作项列表只读路径也遵循同样的“单次 live 读取”原则：如果第一次结果已经满足默认展示页大小，就直接回答；不要因为 `pagination.total` 大于当前页大小，就擅自把 `page-size 10` 扩成 `50` 或重跑同条件查询。要展示更多结果，必须等用户明确追问“继续/全部列出/导出”。
+- 工作项列表只读路径也遵循同样的“单次 live 读取”原则：如果第一次结果已经满足默认展示页大小，就直接回答；若任务关心当前页之外的整体视角，直接读取返回里的 `pagination.total/page_num/page_size`；不要因为 `pagination.total` 大于当前页大小，就擅自把 `page-size 10` 扩成 `50` 或重跑同条件查询。要展示更多结果，必须等用户明确追问“继续/全部列出/导出”。
 
 **复杂查询主体优先策略**：
 
