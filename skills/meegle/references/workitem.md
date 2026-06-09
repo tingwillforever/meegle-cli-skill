@@ -216,8 +216,9 @@ for (const t of ts) {
 - `workitem meta-fields` — 列出字段配置（可按工作项类型过滤）
 - `workitem meta-roles` — 列出流程角色配置
 - `workitem meta-create-fields` — 获取创建工作项所需的元数据
+- `workitem create-preflight` — 写入前评估当前 payload 缺少的有效必填字段（只读，不创建工作项）
 
-查询/过滤/展示映射默认使用 `workitem meta-fields`。`workitem meta-create-fields` 是创建页元数据，只在创建工作项、创建必填字段、创建字段 shape 或创建 API 报错自愈时使用；不要用它代替查询字段配置。
+查询/过滤/展示映射默认使用 `workitem meta-fields`。`workitem meta-create-fields` 是创建页元数据，只在创建工作项、字段 shape、模板/枚举或创建 API 报错自愈时使用；不要用它代替查询字段配置。创建时有效必填字段优先看 `workitem create-preflight`，不要直接把 raw `meta-create-fields.is_required == 1` 当成必须填写的最终清单。
 
 `project_key` 即空间 key。用户未指定空间时，优先使用当前登录 profile / `auth whoami` 暴露的默认空间 key；已知空间 key（例如 `cbg_product_develop`）时，直接作为 `--project-key` 使用。不要为了确认空间而先跑 `space list` / `space detail`；这类空间发现只适用于用户只给中文空间名、当前 profile 暴露多个空间且任务无法判定，或命令明确要求 UUID 的场景。
 
@@ -542,17 +543,46 @@ meegle workitem meta-create-fields \
 
 返回结构（节选）：
 
-- `.data[]` —— 扁平字段数组；每个元素包含 `field_key` / `field_name` / `field_type_key` / `is_required` / `options[]`
+- `.data[]` —— 扁平字段数组；每个元素包含 `field_key` / `field_name` / `field_type_key` / `is_required` / `is_visibility` / `options[]`
 - 模板不是顶层 `templates[]`，而是字段数组中 `field_key == "template"` 的那一项；其 `options[]` 就是可选模板
 
 ⚠️ 重要边界：
 
-- `meta-create-fields` 是创建页元数据；其中 `is_required == 1` 表示创建页必填字段
-- `workitem create` 前必须为所有 `is_required == 1` 字段准备非空值
-- 如果某个必填字段在 `workitem create` 中返回 `field [xxx] is illegal`，这是元数据与 create API 的契约不一致
-- 不要删除必填字段绕过创建；应停止并报告该契约问题
+- `meta-create-fields` 是创建页元数据，主要用于字段发现、字段类型、模板和枚举查询
+- 有效必填字段优先来自 `workitem create-preflight` 的 `missing_required_fields[]` / `required_fields[]`
+- 旧 CLI / no-preflight 路径中，`is_required == 1 && is_visibility == 1` 只表示 CLI 本地可见必填保护范围
+- `is_required == 1` 但 `is_visibility != 1` 的隐藏/条件可见字段不由 CLI 前置阻断，交给后端 create 做最终校验
+- 如果某个可见必填字段在 `workitem create` 中返回 `field [xxx] is illegal`，这是元数据与 create API 的契约不一致
+- 不要删除可见必填字段绕过创建；应停止并报告该契约问题
 
 字段写入格式见 `sop-create-workitem.md` / `sop-update-workitem.md`。具体命令参数仍以 `meegle inspect workitem.create --format json` 和 `meegle inspect workitem.update --format json` 为准。
+
+---
+
+## workitem create-preflight
+
+写入前只读评估当前创建 payload 的有效必填字段，不会创建或修改工作项。优先用它指导用户补齐字段，再调用 `workitem create`。
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| `--project-key` | string | 是 | 空间 `project_key` |
+| `--work-item-type-key` | string | 是 | 工作项类型 UUID（来自 `workitem meta-types`） |
+| `--name` | string | 是 | 准备创建的标题 |
+| `--template-id` | string | 否 | 准备使用的模板 ID |
+| `--field-value-pairs` | JSON array | 否 | 已准备写入的字段值 |
+
+关键返回字段：
+
+- `required_fields[]`：当前上下文有效必填字段
+- `missing_required_fields[]`：payload 尚未提供的有效必填字段
+- `conditional_required_fields[]`：meta 标记必填但当前未被 preflight 强制的隐藏/条件字段
+- `provided_fields[]`：payload 已满足的字段
+- `source`：`backend_effective_meta` / `mcp_visibility_fallback` / `backend_create_error`
+- `confidence`：`high` / `medium` / `low`
+
+当 `source == "mcp_visibility_fallback"` 且 `confidence == "medium"` 时，这是降级判断；仍可据此补齐明显缺失字段，但最终以后端 `workitem create` 结果为准。不要为输入法、穿戴设备、发布版本等产线字段维护硬编码豁免名单。
+
+`workitem create-preflight` 只用于必填缺失判断，不是 `field_value_pairs` 白名单。用户明确提供的非必填字段应按字段类型转换后继续传给 `workitem create`；若该字段不被后端接受，应返回或处理 create 错误，而不是在 preflight 后静默丢弃。
 
 ---
 
@@ -566,7 +596,7 @@ meegle workitem meta-types --project-key PROJ --format json
 meegle workitem meta-create-fields \
   --project-key PROJ \
   --work-item-type-key 678de79dc62484dbfcc76150 \
-  --output-select field_key,field_name,field_type_key,is_required \
+  --output-select field_key,field_name,field_type_key,is_required,is_visibility \
   --format json
 
 # 3. 找枚举字段的合法 option

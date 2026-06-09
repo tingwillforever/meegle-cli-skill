@@ -40,6 +40,23 @@
 
 ### STEP 3 — 收集元数据
 
+若当前命令面已提供 `workitem create-preflight`，在准备写入前优先用它评估有效必填字段：
+
+```bash
+meegle workitem create-preflight \
+  --project-key PROJ \
+  --work-item-type-key TYPE_KEY \
+  --name "TITLE" \
+  --field-value-pairs '[...]' \
+  --format json
+```
+
+读取返回的 `missing_required_fields[]` / `required_fields[]` 作为本次 create 需要补齐的有效必填字段。`source == "mcp_visibility_fallback"` 且 `confidence == "medium"` 时，说明这是 MCP 降级判断，最终仍以后端 create 结果为准。
+
+`workitem create-preflight` 不是字段白名单：它只判断当前 payload 是否缺少有效必填字段。用户明确要求写入的非必填字段仍应按字段 shape 转换后保留在 `field_value_pairs` 中，再交给 `workitem create` 做最终校验；不要因为字段不在 `required_fields[]` / `missing_required_fields[]` 中就过滤掉。
+
+`meta-create-fields` 仍用于字段发现、字段类型、模板和枚举值：
+
 ```bash
 meegle workitem meta-create-fields \
   --project-key PROJ \
@@ -49,12 +66,12 @@ meegle workitem meta-create-fields \
 
 从返回中提取：
 - **模板列表**：找 `field_key == "template"` 的字段，读 `options[]` 获取可用模板
-- **候选字段**：遍历 `.data[]`，读取 `field_key` / `field_name` / `field_type_key` / `is_required` / `options[]`
+- **候选字段**：遍历 `.data[]`，读取 `field_key` / `field_name` / `field_type_key` / `is_required` / `is_visibility` / `options[]`
 - **字段配置**：用户提到的字段的 `field_key`、`field_type_key`、`options`
 
 ⚠️ 不要误读返回结构：`meta-create-fields` 的真实返回是 `.data[]` 扁平字段数组，不是 `.data.fields[]`。
 
-⚠️ 不要跳过 `is_required`：这里的“必填”是**创建页必填约束**。`workitem create` 前必须为所有 `is_required == 1` 的字段准备非空值；如果某个必填字段在 create 阶段返回 `field [xxx] is illegal`，这是元数据与 create API 的契约不一致，不能删除该字段绕过创建。
+⚠️ 不要把 raw `meta-create-fields.is_required == 1` 当成最终必填清单。有效必填优先来自 `workitem create-preflight`；只有旧 CLI / no-preflight 路径才用 `is_required == 1 && is_visibility == 1` 做本地可见必填保护。`is_required == 1` 但 `is_visibility != 1` 的隐藏/条件可见字段不应由 CLI 主动强迫填写，交给 preflight / 后端 create 做最终校验。
 
 ### STEP 4 — 自动匹配模板
 
@@ -65,18 +82,20 @@ meegle workitem meta-create-fields \
 
 ### STEP 5 — 构造创建 payload
 
-优先采用 **完整必填策略**：
+优先采用 **preflight 有效必填策略**：
 
-- 必传：`--name`，以及 `meta-create-fields` 中所有 `is_required == 1` 的字段
+- 必传：`--name`，以及 `workitem create-preflight` 返回的 `missing_required_fields[]` / `required_fields[]` 中尚未提供的字段
 - `field_key == "name"` 用 `--name`
 - `field_key == "template"` 优先用 `--template-id`
 - 其他必填字段用 `--field-value-pairs`
-- 可选字段仅在用户明确要求时追加
+- no-preflight 路径 fallback：只把 `meta-create-fields` 中 `is_required == 1 && is_visibility == 1` 的字段作为 CLI 本地可见必填保护
+- `is_required == 1 && is_visibility != 1` 的隐藏/条件可见字段不主动补占位值，除非用户明确提供、preflight 明确要求，或后端返回缺字段错误
+- 可选字段仅在用户明确要求时追加；追加后即使不在 preflight 的必填列表中，也要保留到最终 create payload
 
 推荐优先级：
 
 1. 标题、模板
-2. 所有 `is_required == 1` 的字段
+2. `workitem create-preflight` 返回的有效必填字段
 3. 用户明确要求的可选字段，例如 `description`
 4. 未要求的可选字段不传
 
@@ -87,8 +106,9 @@ meegle workitem meta-create-fields \
 **必填项缺失**时按下面顺序处理：
 - 有用户输入 → 按字段类型转换后传入
 - 没有用户输入但有合法默认值 → 仅在默认值来自元数据或业务约定明确时使用
-- 人员类 / 关联类 / 业务域专用字段缺值 → 询问用户，不要创建空必填字段的工作项
-- 必填字段在 `workitem create` 中触发 `field [xxx] is illegal` → **优先怀疑 shape 不匹配**，回去查 [field-value-format.md](field-value-format.md) 重组而非删字段绕过
+- 人员类 / 关联类 / 业务域专用的可见必填字段缺值 → 询问用户，不要创建空必填字段的工作项
+- 隐藏/条件可见必填字段缺值 → 不主动编造占位值；若 preflight 或后端明确返回缺字段，再向用户说明该字段被当前上下文最终校验要求
+- 可见必填字段在 `workitem create` 中触发 `field [xxx] is illegal` → **优先怀疑 shape 不匹配**，回去查 [field-value-format.md](field-value-format.md) 重组而非删字段绕过
 
 **值转换速查**：
 
@@ -121,13 +141,13 @@ meegle workitem create \
 如果 `workitem create` 失败，按下面顺序处理：
 
 - `field [xxx] is illegal`
-  处理：先判断该字段是否 `is_required == 1`
-  - 若是必填字段：停止，不要移除字段重试；说明这是创建页元数据与 create API 契约不一致
+  处理：先判断该字段是否来自 preflight 有效必填；no-preflight 路径再判断是否 `is_required == 1 && is_visibility == 1`
+  - 若是有效必填 / 可见必填字段：停止，不要移除字段重试；说明这是创建页元数据或 preflight 与 create API 契约不一致
   - 若是可选字段：可移除该可选字段后重试一次，并在结果中说明该可选字段未写入
 - 明确缺少模板
   处理：回到 STEP 3，读取 `field_key == "template"` 的 `options[]`
 - 明确缺少某个字段
-  处理：回到 STEP 3，核对所有 `is_required == 1` 字段并补齐
+  处理：回到 STEP 3，优先跑 `workitem create-preflight`；如果 preflight 不可用，再核对所有 `is_required == 1 && is_visibility == 1` 字段。如果后端点名的是隐藏/条件可见字段，向用户说明这是后端最终校验要求，再让用户提供真实适用值
 
 如果工作项已经创建成功：
 
@@ -177,7 +197,7 @@ meegle workitem get \
 | `json: unsupported type` / 网络超时 | 原参数直接重试 |
 | 字段 key 不匹配 | 用 `workitem meta-create-fields` 全量返回按 `field_name` 模糊匹配 |
 | `invalid select option(s)` | 从 meta 的 `options[]` 匹配；唯一匹配则修正重试，否则展示候选让用户选 |
-| `field [xxx] is illegal` | 若字段是 `meta-create-fields.is_required == 1`，停止并报告元数据/create 契约不一致；若是可选字段，移除该可选字段后最多重试一次 |
+| `field [xxx] is illegal` | 若字段是 preflight 有效必填，或 no-preflight 路径下的 `meta-create-fields.is_required == 1 && is_visibility == 1`，停止并报告元数据/preflight/create 契约不一致；若是可选字段，移除该可选字段后最多重试一次 |
 | `不满足层级配置` | 查 `children` 树，展示末级叶子节点让用户选择 |
 | 明确缺少必填字段 | 核对字段类型限制，关联工作项尝试数字↔字符串切换 |
 

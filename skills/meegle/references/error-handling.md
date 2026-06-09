@@ -79,9 +79,9 @@ These mistakes do NOT produce error codes — they silently return wrong data or
 
 ### Pitfall 6: Skipping create-page required fields
 
-**Wrong:** Treat `workitem meta-create-fields.is_required == 1` as optional or remove such fields after `field [xxx] is illegal`.
-**Reality:** `is_required == 1` is the create-page required contract. If create accepts missing required fields, that is a blocking data-quality bug; if create rejects a required field as illegal, metadata and create API are inconsistent.
-**Rule:** Fill every required create-page field before `workitem create`. Never delete a required field to make creation succeed.
+**Wrong:** Treat visible `workitem meta-create-fields.is_required == 1` fields as optional or remove such fields after `field [xxx] is illegal`.
+**Reality:** Effective create required fields should come from `workitem create-preflight` when available. `is_required == 1 && is_visibility == 1` is only the legacy/no-preflight CLI visible-required guard. `is_required == 1` with `is_visibility != 1` can be a hidden or conditional field; do not fabricate values for it unless the user provides a real value, preflight requires it, or backend final validation explicitly requires it.
+**Rule:** Run create preflight when available and fill every `missing_required_fields[]` entry before `workitem create`. Never delete an effective required field to make creation succeed.
 
 ### Pitfall 7: `field not found` on create/update_condition_view
 
