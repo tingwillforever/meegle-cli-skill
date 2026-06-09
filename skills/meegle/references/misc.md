@@ -46,7 +46,6 @@ meegle subtask list \
   --project-key PROJ \
   --work-item-type-key TYPE_KEY \
   --work-item-id 12345 \
-  --node-id NODE_ID \
   --format json
 ```
 

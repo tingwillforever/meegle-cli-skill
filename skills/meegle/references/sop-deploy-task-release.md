@@ -76,9 +76,7 @@ meegle release deploy-task-inspect \
 
 ```bash
 meegle release deploy-task-prepare \
-  --project-key PROJ \
-  --release-id RELEASE_ID \
-  --appName APP_NAME \
+  --params '{"project_key":"PROJ","release_id":"RELEASE_ID","appName":"APP_NAME"}' \
   --format json
 ```
 
@@ -209,9 +207,7 @@ meegle release deploy-task-list \
 
 ```bash
 meegle release deploy-task-prepare \
-  --project-key PROJ \
-  --release-id RELEASE_ID_ACTIVE \
-  --appName APP_NAME \
+  --params '{"project_key":"PROJ","release_id":"RELEASE_ID_ACTIVE","appName":"APP_NAME"}' \
   --format json
 ```
 

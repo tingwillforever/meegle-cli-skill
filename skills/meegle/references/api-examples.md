@@ -244,9 +244,7 @@ meegle subtask operate \
 
 ```bash
 meegle release deploy-task-prepare \
-  --project-key PROJ \
-  --release-id RELEASE_ID \
-  --appName APP_NAME \
+  --params '{"project_key":"PROJ","release_id":"RELEASE_ID","appName":"APP_NAME"}' \
   --format json
 ```
 
