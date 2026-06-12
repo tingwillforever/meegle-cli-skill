@@ -1,66 +1,41 @@
 # SOP: Release Deploy Task
 
-> **CRITICAL** — 开始前先读 [`../SKILL.md`](../SKILL.md)（前置检查、授权流程、命令参数参考、字段值格式、通用规范和错误处理），以及本目录下的 [`error-handling.md`](error-handling.md)、[`verified-command-surface.md`](verified-command-surface.md)、[`api-examples.md`](api-examples.md)。
+> **CRITICAL** — 开始前先读 [`../SKILL.md`](../SKILL.md)，以及本目录下的 [`error-handling.md`](error-handling.md)、[`verified-command-surface.md`](verified-command-surface.md)、[`api-examples.md`](api-examples.md)。
 
-本 SOP 用于在飞书项目的发布计划下准备、创建、执行、验证部署任务（deploy task），全程自动化执行。**仅适用于私有部署 CLI 工作流**。
-
----
-
-## 写操作建模
-
-发布/部署任务前先明确：
-
-- 目标对象：`project_key`、发布计划 `release_id`、目标 app、目标 deploy task。
-- 目标状态 / 动作：prepare、create、execute、verify、apply-white-list。
-- 变更意图：查看、创建、执行、验证或恢复部署任务。
-- 风险等级：create/execute/verify/apply-white-list 是 conditional 写操作；必须确认发布上下文、目标记录和预期副作用，不能套用工作项读路径成本预算省略安全门禁。
-- 结果核验：写操作后用 list/inspect/verify 读取部署状态，展示任务 ID、部署状态、关键失败原因和后续动作。
-
-## 适用场景
-
-当用户要求对发布工作项（release work item）下的部署任务进行以下操作时使用本 SOP：
-
-- 准备部署任务（prepare）
-- 查看部署任务列表（list）
-- 查看部署任务详情（inspect）
-- 创建部署任务（create）
-- 执行部署任务（execute）
-- 验证部署任务（verify）
+本 SOP 用于在飞书项目发布计划下准备、创建、执行和验证 deploy task。按用户明确意图分段执行；创建不等于执行，执行不等于业务验证通过。
 
 ---
 
-## 执行流程
+## 意图路由
 
-### STEP 1 — 运行态确认
+先判断用户本轮要到哪一步，并在对应停止点停下：
 
-默认直接进入后续只读 release 命令，不把 `meegle doctor --format json` 当固定前置。只有登录/配置异常、只读命令报错但难以定位，或 `inspect --format json` 显示 `runtime_source != "live"` 时，再运行 `doctor`。
+| 用户意图 | 执行路径 | 停止点 |
+|---|---|---|
+| 查看部署任务 / 查看结果 | inspect；按需 list | 输出当前状态后停止 |
+| 创建部署任务 | prepare -> create -> inspect(new recordID) | 输出新任务状态后停止 |
+| 创建并执行部署 | prepare -> create -> inspect(new recordID) -> execute -> inspect | 输出提交后最新状态后停止 |
+| 执行已有部署任务 | inspect(gate) -> execute -> inspect | 输出提交后最新状态后停止 |
+| 等待部署完成 | execute 后重复 inspect | 到用户要求的终态后停止 |
+| 提交验证通过/不通过 | verify | 输出验证提交结果后停止 |
 
-### STEP 2 — 获取发布计划确认
+不要把“创建部署任务”理解为“创建并执行部署”，也不要把“执行部署”理解为“业务验证通过”。
 
-如果用户尚未提供发布计划链接或发布计划工作项 ID，**停下来询问用户**。不要搜索历史记录、检查旧上下文、或代替用户探测候选发布计划。
+## 硬门禁
 
-### STEP 3 — 确认发布上下文
+- 运行态：默认直接进入 release 命令；只有登录/配置异常、只读命令报错难以定位，或 `inspect --format json` 显示 `runtime_source != "live"` 时，才运行 `meegle doctor --format json`。
+- 发布计划：用户必须为**本次请求**明确提供发布计划链接或发布计划工作项 ID。不要复用旧对话、历史部署尝试或自动选择进行中的发布计划。
+- 完成态：如果发布计划已完成，停止；不要在该发布计划下创建新 deploy task。
+- 命令面：只使用公开 `release deploy-task-*` 命令。若任务需要隐藏 Kubelink MCP 工具，停止并说明公开 CLI 尚未暴露该操作。
+- 状态源：`deploy_status` 是权威状态；`podStatus` / `readiness` 只作辅助信号。
+- 写操作：create / execute / verify / apply-white-list 都是 conditional 写操作；上下文、目标记录和副作用不明确时不要执行。
+- 列表读取：不要把完整 `deploy-task-list` 作为固定前置。后端 list 当前不支持 app/latest 服务端过滤；只有用户要求审计历史、或 create/execute 返回冲突、失败、上下文不匹配等诊断信号时才 list。
 
-用户明确提供发布计划后，确认发布上下文：
+## 命令模板
 
-```bash
-meegle release deploy-task-list \
-  --project-key PROJ \
-  --release-id RELEASE_ID \
-  --format json
-```
+### Inspect
 
-### STEP 4 — 失败任务前置检查（prior-failure gate）
-
-如果 `deploy-task-list` 响应中包含一个或多个近期任务的 `deploy_status` 为 `"failed"`、`"rolled-back"`、`"rollback"` 或 `"terminated"`（即后端报告任务未成功完成或异常终止，terminated 表示手动取消/超时/系统中断），**先 `inspect` 这些任务**，向用户展示失败原因，并获得用户明确确认后再继续 `deploy-task-create`。
-
-这是流程要求，不是 CLI 强制门控。
-
-**`podStatus` / `readiness` 仅作辅助信号，信任 `deploy_status` 作为权威状态**。
-
-### STEP 5 — 查看部署任务详情（可选）
-
-如果用户指定了特定部署任务或想查看 pod 状态，inspect 它：
+查看指定任务或写后核验：
 
 ```bash
 meegle release deploy-task-inspect \
@@ -70,29 +45,38 @@ meegle release deploy-task-inspect \
   --format json
 ```
 
-### STEP 6 — 准备创建载荷（如需创建）
+### List
 
-如果需要创建载荷，先从发布上下文准备：
+仅用于用户明确要求列表/审计历史，或排查失败/冲突：
 
 ```bash
-meegle release deploy-task-prepare \
-  --params '{"project_key":"PROJ","release_id":"RELEASE_ID","appName":"APP_NAME"}' \
+meegle release deploy-task-list \
+  --project-key PROJ \
+  --release-id RELEASE_ID \
   --format json
 ```
 
-`prepare` 返回的 `latestVersions` 是 chart catalog 可用版本列表。**从列表中选择构建号最大的版本作为"catalog 最新"**（后端返回顺序可能不可靠）。catalog 可能被裁剪或旧版本被清理，导致某些历史部署过的版本不在列表中。如用户要求部署不在 `latestVersions` 中的版本，用 `--version` 探测该版本是否仍在 catalog 中。
+如果目标 app 的近期任务是 `"failed"`、`"rolled-back"`、`"rollback"` 或 `"terminated"`，先 inspect 失败任务并展示原因，再决定是否继续。
 
-### STEP 7 — 创建部署任务
+### Prepare
 
-**仅在 trigger 载荷明确后**创建部署任务。
+创建前先准备发布上下文：
 
-创建前确认：
+```bash
+meegle release deploy-task-prepare \
+  --project-key PROJ \
+  --release-id RELEASE_ID \
+  --appName APP_NAME \
+  --format json
+```
 
-- 用户已为**本次部署请求**明确提供发布计划链接或发布计划工作项 ID
-- 确认 `RELEASE_ID` 是为本次部署请求明确确认的发布计划
-- 不要自动复用旧对话上下文、之前的部署尝试、或仅仅是进行中的发布计划列表中的发布计划
-- 如果用户未确认本次部署应遵循哪个发布计划，停下来让用户确认现有发布计划或创建新发布计划
-- 如果发布计划已完成，停止；不要在该发布计划下创建新部署任务
+- `latestVersions` 是 chart catalog 可用版本列表；选择构建号最大的版本作为 catalog 最新，不能依赖返回顺序。
+- 如果用户指定版本不在 `latestVersions` 中，用 `--version` 探测该版本是否仍在 catalog 中。
+- 如果 `can_continue=false`，先解决 app/chart 歧义，不要 create。
+
+### Create
+
+仅在 trigger 载荷明确后创建：
 
 ```bash
 meegle release deploy-task-create \
@@ -102,145 +86,96 @@ meegle release deploy-task-create \
   --format json
 ```
 
-### STEP 8 — 执行部署任务
+创建后立即执行：
 
-**仅在目标任务集明确后**执行部署：
+1. 从 `workflow.execute.releases[].recordID` 取本轮新建 `recordID`。
+2. 只 inspect 这个新 `recordID`，不要通过 list 反查最新任务。
+3. 如果用户只要求创建，汇报 `appName`、版本、`recordID`、`deploy_status`、`allow_release` 和下一步可选动作后停止。
+4. 创建任务后不要自动 apply-white-list、execute 或 verify。
+
+### Execute
+
+仅在用户意图包含 execute 且执行 gate 通过后执行：
 
 ```bash
 meegle release deploy-task-execute \
   --project-key PROJ \
   --release-id RELEASE_ID \
-  --recordIDs '["RECORD_ID_1","RECORD_ID_2"]' \
+  --recordIDs '["RECORD_ID"]' \
   --format json
 ```
 
-### STEP 9 — 监控部署任务状态
+执行 gate：
 
-执行后，使用 `deploy-task-inspect` 读取部署任务状态。当前 public CLI 不暴露 watch / interval / timeout 参数；如需持续观察，由 agent 按用户确认的节奏重复执行只读 inspect。
+- `recordID` 来自本轮 create 返回，或由用户明确指定
+- `recordID` 与当前 `project_key` / `release_id` 上下文匹配
+- `deploy_status == "pending"`
+- `allow_release == true`
 
-```bash
-meegle release deploy-task-inspect \
-  --project-key PROJ \
-  --release-id RELEASE_ID \
-  --recordID RECORD_ID \
-  --format json
-```
+若 create 后刚 inspect 且 gate 已满足，不要为了 execute 重复 inspect。若用户给的是已有 `recordID`、上次 inspect 已过期、状态不是 `"pending"`、`allow_release == false` 或上下文不清楚，必须重新 inspect。
 
-agent **应该**根据响应中的 `deploy_status` 分支，然后再继续 `deploy-task-verify`。若状态仍在进行中，汇报当前状态并询问用户是否继续观察。
-
-### STEP 10 — 应用白名单（如需要）
-
-如果 execute 返回白名单指导（因为部署在允许窗口之外），停下来获取用户明确确认，然后应用白名单：
+如果用户只要求创建且 `allow_release == false`，只汇报“当前不可执行 / 需要白名单”，不要自动申请白名单。只有用户意图包含 execute，且 `deploy_status == "pending"`、`allow_release == false` 时，才申请白名单：
 
 ```bash
 meegle release deploy-task-apply-white-list \
   --project-key PROJ \
   --release-id RELEASE_ID \
-  --recordIDs '["RECORD_ID_1"]' \
+  --recordIDs '["RECORD_ID"]' \
   --format json
 ```
 
-### STEP 11 — 验证部署任务
+白名单申请成功后轮询 inspect，直到 `allow_release == true` 且 `deploy_status == "pending"` 再 execute。若状态为 `"approving"`，等待审批；若状态变成 `"terminated"` / `"failed"`，停止并汇报失败原因。
 
-**仅在执行状态已知后**验证：
+### Execute 后汇报
+
+`deploy-task-execute` 成功只表示执行请求已提交，不表示部署成功，也不表示业务验证通过。执行后必须 inspect 一次最新状态，并按这个模板汇报：
+
+```text
+部署执行请求已提交，recordID=RECORD_ID。最新查询状态为 DEPLOY_STATUS。请关注发布/部署通知和业务侧验证结果。业务验证完成后，可以告诉我“验证通过”或“验证不通过”，我再帮你提交验证结论。
+```
+
+状态口径：
+
+- `"pending"`：执行请求可能已提交，但后端编排尚未开始处理或状态尚未刷新
+- `"deploying"`：部署正在执行
+- `"validating"`：部署已进入待业务验证 / 验证阶段
+- `"failed"` / `"terminated"` / `"rolled-back"`：停止后续动作，汇报失败原因，不提交 verify
+
+当前 public CLI 不暴露 `deploy-task-inspect` 的 watch / interval / timeout 参数。只有用户明确要求等待终态时，才按用户确认的节奏重复执行只读 inspect，直到 `"completed"` / `"terminated"` / `"failed"` / `"rolled-back"` 等终态。
+
+### Verify
+
+仅在用户明确表示“验证通过”“验证不通过”或“提交验证结果”后验证。不要从 `deploy_status`、通知、pod 状态或经验推断业务验证结论。
+
+验证结论枚举：
+
+| 用户结论 | `validation` |
+|---|---:|
+| 验证通过 | `10` |
+| 验证失败 / 验证不通过 | `11` |
+
+提交验证通过：
 
 ```bash
 meegle release deploy-task-verify \
   --project-key PROJ \
   --release-id RELEASE_ID \
-  --validation '[{"recordID":"RECORD_ID_1","validation":10}]' \
+  --validation '[{"recordID":"RECORD_ID","validation":10}]' \
   --format json
 ```
 
----
-
-## 公开命令面约束
-
-v1 公开 CLI 不暴露底层 Kubelink 命令族。
-
-如果任务需要隐藏的 Kubelink MCP 工具，停下来并解释当前公开 CLI 仅支持此领域的 release 层 `release deploy-task-*` 工作流。
-
----
-
-## 规则
-
-- 将 `release deploy-task-prepare/list/inspect` 视为默认安全的首选操作
-- 将 create/execute/verify/upgrade/apply-white-list 风格的命令视为条件操作
-- 在发布上下文、目标记录和预期副作用明确之前，不要执行条件部署任务命令
-- 如果 `inspect` 输出显示 `recordID` 与提供的发布上下文不匹配，停下来解决该不匹配，然后再写入
-
----
-
-## 恢复注意事项
-
-- 如果 `doctor` 无法发现 deploy-task 命令，将其视为 CLI 与远程 MCP 服务器之间的命令面漂移，而不是缺少 Kubelink CLI 配置
-- 如果 `prepare` 返回 `can_continue=false`，检查原因并在创建任何内容之前解决 app/chart 歧义
-- 如果 `execute` 或 `verify` 需要 release 层无法表达的精确底层 Kubelink 载荷，停下来并告诉用户公开 CLI 尚未暴露该操作
-- 如果错误信息提到用户未直接调用的工具（如 `Invalid arguments for tool meegle_workflow_query`），这是后端 MCP 服务器内部工具链错误，不是用户参数问题。告知用户这是后端服务问题，需联系运维修复
-
----
-
-## 验收用例：当前请求的明确发布计划确认
-
-使用此验收用例从面向用户的工作流验证生产 deploy-task 规则。
-
-**前提条件**：
-
-- `RELEASE_ID_ACTIVE` 是为当前部署请求明确选择的发布计划，其工作流仍在进行中
-- `RELEASE_ID_DONE` 是已完成的发布计划，不再适合创建新 deploy-task
-- 操作员已有有效的 `trigger` 载荷，或可通过 `release deploy-task-prepare` 生成
-
-**验收步骤**：
-
-1. 从新的部署请求开始，例如"将应用 X 部署到生产环境"
-2. 不要立即创建。首先确认此请求遵循哪个发布计划
-3. 如果用户尚未确认发布计划，停留在只读路径命令，例如：
+提交验证失败 / 验证不通过：
 
 ```bash
-meegle release deploy-task-list \
+meegle release deploy-task-verify \
   --project-key PROJ \
-  --release-id RELEASE_ID_ACTIVE \
+  --release-id RELEASE_ID \
+  --validation '[{"recordID":"RECORD_ID","validation":11}]' \
   --format json
 ```
 
-或：
+## 恢复口径
 
-```bash
-meegle release deploy-task-prepare \
-  --params '{"project_key":"PROJ","release_id":"RELEASE_ID_ACTIVE","appName":"APP_NAME"}' \
-  --format json
-```
-
-4. 用户明确确认 `RELEASE_ID_ACTIVE` 用于此部署请求后，创建部署任务：
-
-```bash
-meegle release deploy-task-create \
-  --project-key PROJ \
-  --release-id RELEASE_ID_ACTIVE \
-  --trigger '[{"iBuildAppId":"APP_ID","feishuProjectID":"PROJ_ID","feishuOrderID":"RELEASE_ID_ACTIVE","chartFullName":"REPO/CHART-1.2.3.tgz","builder":"USER_KEY","upgradeSummary":"Prepared from release RELEASE_ID_ACTIVE","qualityAssurance":"USER_KEY"}]' \
-  --format json
-```
-
-**预期结果**：
-
-- 发布计划预检通过
-- 命令被允许到达后端执行
-- 工作流将此视为有效的创建尝试，因为发布计划已为当前请求明确确认且仍未完成
-
-5. 用 `RELEASE_ID_DONE` 重复相同的 create 命令：
-
-```bash
-meegle release deploy-task-create \
-  --project-key PROJ \
-  --release-id RELEASE_ID_DONE \
-  --trigger '[{"iBuildAppId":"APP_ID","feishuProjectID":"PROJ_ID","feishuOrderID":"RELEASE_ID_DONE","chartFullName":"REPO/CHART-1.2.3.tgz","builder":"USER_KEY","upgradeSummary":"Prepared from release RELEASE_ID_DONE","qualityAssurance":"USER_KEY"}]' \
-  --format json
-```
-
-**预期结果**：
-
-- CLI 在后端写入执行前拒绝命令
-- 错误代码是 `RELEASE_PLAN_COMPLETED`
-- 下一步操作是确认另一个进行中的发布计划或先创建新发布计划
-
-如果工作流静默复用旧的 `RELEASE_ID`、自动选择任何进行中的发布计划、或允许在已完成的发布计划下 `deploy-task-create`，则此用例不满足。
+- 如果 `doctor` 无法发现 deploy-task 命令，将其视为 CLI 与远程 MCP Server 的命令面漂移。
+- 如果 `execute` 或 `verify` 需要 release 层无法表达的精确底层 Kubelink 载荷，停止并说明公开 CLI 尚未暴露该操作。
+- 如果错误信息提到用户未直接调用的工具（如 `Invalid arguments for tool meegle_workflow_query`），这是后端 MCP Server 内部工具链错误，不是用户参数问题；告知用户需联系运维修复。
