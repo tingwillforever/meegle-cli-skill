@@ -327,7 +327,7 @@ meegle workitem search-by-params \
 - `work_item_status.state_key`：已读 `meta-fields` 时复用 `work_item_status.options[]` 建立 `value → label` 映射；只有排障时才附带原始 `state_key`
 - `current_nodes[]`：未做状态 options 映射时，直接显示节点 `name`
 - `select` / `multi-select` / `tree-select` 等枚举字段：优先显示 `label`，不要把 `value` 直接展示给用户
-- `business` / 业务线 ID：用 `meegle auth whoami --format json` 的 `business_line_names` 或 `meegle space business-lines` 返回名称回填
+- `business` / 业务线 ID：`meegle auth whoami --format json` 的 `business_line_names` 只表示业务线只读 fallback 上下文，可用于展示参考但不代表普通工作项通用可见范围；需要完整映射时用 `meegle space business-lines` 返回名称回填
 - 角色 key：用 `meegle workitem meta-roles --project-key PROJ --work-item-type-key TYPE_KEY --format json` 回填角色名称
 - 人员 user_key：最终展示页只有 raw key 且用户未要求 raw / 不回填时，最多一次 `meegle user query --user-keys '["USER_KEY"]' --format json` 批量回填当前页唯一 key；用户要求 raw 或回填失败时，展示原始 user_key。默认的人名/关键词解析仍优先 `meegle user search --query "姓名" --project-key PROJ --format json`。`user query` 的公开定位以 [verified-command-surface.md](verified-command-surface.md) 为准；若上下文明确是“空间下团队成员”，再用 `meegle team list-members --project-key PROJ --format json` 查看团队列表及其 `user_keys` / `administrators`，但不要把它当成空间成员全集
 

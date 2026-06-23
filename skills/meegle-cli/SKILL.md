@@ -1,5 +1,5 @@
 ---
-name: meegle
+name: meegle-cli
 description: |
   飞书项目（Meegle/Meego）私有部署 CLI 操作工具。Use this skill when the user needs to query spaces, views, work items, workflow state, comments, subtasks, release deploy tasks, or validate the private remote MCP runtime. 关键词：飞书项目、meegle、meego、工作项、需求、缺陷、任务、视图、节点、流转、发布任务、部署任务。
 ---
@@ -177,7 +177,7 @@ meegle inspect <resource>.<method> --format json
 
 当命令需要业务线、所属项目或产品型号/子平台但用户未指定时，按以下顺序推断：
 
-1. `meegle auth whoami --format json` 取 `business_line_keys/names`；若需要业务线 ID，用 `meegle space business-lines --project-key PROJ --format json` 按 `name` 匹配取 `id`
+1. 若需要展示或回填业务线名称，可参考 `meegle auth whoami --format json` 的 `business_line_names`，但它只表示业务线只读 fallback 上下文，不代表普通工作项通用可见范围；若需要业务线 ID，用 `meegle space business-lines --project-key PROJ --format json` 按 `name` 匹配取 `id`
 2. `workitem meta-types --project-key <project_key>` 找 `api_name == pdm` 的条目，取其 `type_key`；若只需要当前授权摘要，优先看 `meegle auth whoami --format json`。若需要项目明细，适用上面的“当前用户相关工作项查询约束”：当前用户参与/相关的项目，`workitem search-filter` 必须显式加 `--user-keys '["<meegle_user_key>"]'`；只有在要看空间内全量项目管理工作项时，才允许不带 `--user-keys`；若需要更严格的字段级人员语义或当前授权/接口契约不适合 `search-filter`，再改用 `workitem search-by-params`
 3. 同上找 `api_name == product_type` 的 `type_key`；再用 `workitem search-filter --work-item-type-keys '[<type_key>]'` 取产品型号/子平台，结果按业务线客户端过滤
 

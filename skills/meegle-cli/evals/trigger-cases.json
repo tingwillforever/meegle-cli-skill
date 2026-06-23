@@ -1,0 +1,30 @@
+{
+  "skill_name": "meegle",
+  "cases": [
+    {
+      "id": "meegle-positive-workitem-001",
+      "type": "positive",
+      "prompt": "帮我查一下这个 Meegle 工作项详情",
+      "required_terms": ["工作项", "meegle"]
+    },
+    {
+      "id": "meegle-positive-view-001",
+      "type": "positive",
+      "prompt": "查看飞书项目里的固定视图数据",
+      "required_terms": ["视图", "飞书项目"]
+    },
+    {
+      "id": "meegle-negative-plugin-001",
+      "type": "negative",
+      "prompt": "创建一个 Meegle 插件工程",
+      "forbidden_terms": ["插件工程"]
+    },
+    {
+      "id": "meegle-boundary-runtime-001",
+      "type": "boundary",
+      "prompt": "诊断 Meegle CLI 的远端 MCP runtime 是否可用",
+      "required_terms": ["诊断", "mcp runtime"],
+      "adjacent_skills": ["meegle-debug"]
+    }
+  ]
+}
